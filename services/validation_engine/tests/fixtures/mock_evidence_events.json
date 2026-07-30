@@ -1,0 +1,50 @@
+[
+  {
+    "action_id": "act-0001",
+    "correlation_key": "camp-2026-0617-a",
+    "technique_ref": "T1486",
+    "target_asset_ref": "host-fileserver-01",
+    "expected_observable": "vssadmin.exe or wbadmin.exe invoked with an encryption flag (cipher /e)",
+    "timestamp": "2026-06-17T09:12:00Z"
+  },
+  {
+    "action_id": "act-0002",
+    "correlation_key": "camp-2026-0617-a",
+    "technique_ref": "T1195",
+    "target_asset_ref": "host-workstation-14",
+    "expected_observable": "msiexec.exe or appdeploy.exe installing a package from an unverified source",
+    "timestamp": "2026-06-17T09:18:00Z"
+  },
+  {
+    "action_id": "act-0003",
+    "correlation_key": "camp-2026-0617-b",
+    "technique_ref": "T0831",
+    "target_asset_ref": "ot-plc-modbus-07",
+    "expected_observable": "unauthorized Modbus write command (function code 5, 6, 15, or 16) to a PLC",
+    "timestamp": "2026-06-17T10:05:00Z"
+  },
+  {
+    "action_id": "act-0004",
+    "correlation_key": "camp-2026-0617-b",
+    "technique_ref": "T1111",
+    "target_asset_ref": "identity-tenant-azure-eu",
+    "expected_observable": "repeated MFA denial (fatigue) or MFA skip with token replay",
+    "timestamp": "2026-06-17T10:22:00Z"
+  },
+  {
+    "action_id": "act-0005",
+    "correlation_key": "camp-2026-0617-c",
+    "technique_ref": "T1098",
+    "target_asset_ref": "cloud-account-aws-prod",
+    "expected_observable": "AttachUserPolicy or AddUserToGroup performed by a non-admin principal",
+    "timestamp": "2026-06-17T11:00:00Z"
+  },
+  {
+    "action_id": "act-0006",
+    "correlation_key": "camp-2026-0617-c",
+    "technique_ref": "T1499",
+    "target_asset_ref": "host-webserver-03",
+    "expected_observable": "no detection content or SIEM telemetry exists for this technique yet",
+    "timestamp": "2026-06-17T11:15:00Z"
+  }
+]
