@@ -67,3 +67,37 @@ def test_validate_no_data_when_no_rule_matches_technique():
 def test_validate_no_data_when_no_rules_at_all():
     resp = client.post("/validate", json={"evidence": EVIDENCE, "rules": []})
     assert resp.json()["verdict"] == "NoData"
+def test_validate_batch_processes_multiple_evidence_events():
+    evidence_2 = {
+        **EVIDENCE,
+        "action_id": "act-0002",
+    }
+
+    evidence_3 = {
+        **EVIDENCE,
+        "action_id": "act-0003",
+    }
+
+    resp = client.post(
+        "/validate/batch",
+        json={
+            "evidence": [EVIDENCE, evidence_2, evidence_3],
+            "rules": [
+                {
+                    "rule_id": "DET-001",
+                    "technique_ref": "T1486",
+                }
+            ],
+        },
+    )
+
+    assert resp.status_code == 200
+
+    body = resp.json()
+
+    assert len(body) == 3
+    assert body[0]["action_id"] == "act-0001"
+    assert body[1]["action_id"] == "act-0002"
+    assert body[2]["action_id"] == "act-0003"
+
+    assert all(result["verdict"] == "Detected" for result in body)

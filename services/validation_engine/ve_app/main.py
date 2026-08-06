@@ -39,6 +39,12 @@ class ValidateRequest(BaseModel):
     rules: List[DetectionRule]
 
 
+class BatchValidateRequest(BaseModel):
+    """Request containing multiple evidence events for batch validation."""
+
+    evidence: List[EvidenceEvent]
+    rules: List[DetectionRule]
+
 def compute_confidence(evidence: EvidenceEvent, rule: DetectionRule) -> float:
     """
     Weighted confidence scoring (Week 2).
@@ -134,7 +140,14 @@ def validate_evidence(evidence: EvidenceEvent, rules: List[DetectionRule]) -> Ve
 @app.post("/validate", response_model=Verdict)
 async def validate(req: ValidateRequest) -> Verdict:
     return validate_evidence(req.evidence, req.rules)
+@app.post("/validate/batch", response_model=List[Verdict])
+async def validate_batch(req: BatchValidateRequest) -> List[Verdict]:
+    """Validate multiple evidence events in a single request."""
 
+    return [
+        validate_evidence(evidence, req.rules)
+        for evidence in req.evidence
+    ]
 
 @app.get("/health")
 async def health():
