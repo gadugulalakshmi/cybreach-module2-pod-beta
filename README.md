@@ -87,3 +87,15 @@ through the Validation Engine, and prints a verdict for each one.
 - [x] Alert fidelity assessment (`oc_app/fidelity.py`) -- High/Medium/Low by detection specificity
 - [x] MTTD computation (`oc_app/mttd.py`) -- time between attack execution and first matching alert
 - [x] Tests: `test_mttd.py`, `test_fidelity.py`, `test_causal_chain.py`, `test_classify_week5.py`
+
+### Week 6 (Performance Enhancements)
+- [x] Add batch validation support for multiple evidence events
+- [x] Implement `/validate/batch` endpoint
+- [x] Add Redis query-result caching with automatic TTL expiration
+- [x] Configure default Redis cache TTL of 60 seconds
+- [x] Implement parallel execution across multiple SIEM connectors using `ThreadPoolExecutor`
+- [x] Add tests for concurrent SIEM connector execution
+- [x] Add performance load test with 1,000 mock evidence events
+- [x] Measure total and average processing time for 1,000 events
+- [x] Verify all 1,000 events are processed successfully
+- [x] All tests passed: 107 passed
