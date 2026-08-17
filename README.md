@@ -114,25 +114,38 @@ through the Validation Engine, and prints a verdict for each one.
 * \[x] Verify all 1,000 events are processed successfully
 * \[x] All tests passed: 123 passed
 
-Week 7 (Regulatory Control Mapping)
+## Week 7 – Validation Engine & Outcome Processing
 
-\[x] Implement regulatory control mapping interface (`ve\_app/control\_mapping.py`)
+### Verdict Aggregation
+- Implemented verdict aggregation for validation results.
+- Supports Detected, Missed, Partial, and NoData outcomes.
 
-\[x] Support NIST CSF 2.0 control mapping
+### Regulatory Control Mapping
+- Added regulatory control mapping support for:
+  - NIST CSF 2.0
+  - ISO 27001:2022
+  - PCI-DSS 4.0
+  - GDPR
 
-\[x] Support ISO 27001:2022 control mapping
+### Incremental Validation
+- Implemented incremental validation to process new evidence without unnecessary reprocessing.
 
-\[x] Support PCI-DSS 4.0 control mapping
+### Validation Result Diffing
+- Implemented validation result comparison to identify changes between validation runs.
 
-\[x] Support GDPR control mapping
 
-\[x] Validate unsupported regulatory frameworks
+## Week 8 – Validation Engine & Compliance Logic
 
-\[x] Preserve validation verdicts during control mapping
+### Engine Hardening & Reliability
+- Implemented robust error handling for SIEM connector failures.
+- Added graceful degradation with NoData results when a connector is unavailable.
+- Added comprehensive audit logging for validation execution and connector failures.
 
-\[x] Add control mapping test coverage (`tests/test\_control\_mapping.py`)
+### Evidence-Backed Compliance Verification
+- Implemented explicit evidence reference validation.
+- Controls can be marked as Met only when valid evidence is linked.
+- Missing or invalid evidence results in NotMet.
+- Missed, Partial, and NoData verdicts cannot be marked as Met.
 
-\[x] Run full validation and outcome classifier test suite
-
-\[x] All tests passed: 123 passed
-
+### Validation
+- 105 validation engine tests passed successfully.
