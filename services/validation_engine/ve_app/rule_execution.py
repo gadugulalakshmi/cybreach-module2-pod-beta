@@ -1,8 +1,10 @@
+
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from pydantic import BaseModel
 
+from ve_app.audit_logger import audit_event
 from ve_app.connectors import BaseConnector
 from ve_app.models import EvidenceEvent
 from ve_app.observable_matching import best_observable_match
@@ -25,12 +27,39 @@ def execute_rule(
     window_seconds: int = DEFAULT_WINDOW_SECONDS,
 ) -> RawValidationResult:
 
+    audit_event(
+        "validation_started",
+        action_id=evidence.action_id,
+        rule_id=rule.rule_id,
+    )
+
     query_str = rule.query_str or rule.rule_id
     time_range = (evidence.timestamp, evidence.timestamp)
 
-    raw_results = connector.query(query_str, time_range)
+    try:
+        raw_results = connector.query(query_str, time_range)
+    except Exception as exc:
+        audit_event(
+            "connector_failure",
+            action_id=evidence.action_id,
+            rule_id=rule.rule_id,
+            error=str(exc),
+        )
+        return RawValidationResult(
+            action_id=evidence.action_id,
+            rule_id=rule.rule_id,
+            confidence=0.0,
+            matched=False,
+            raw_results=[],
+            no_data=True,
+        )
 
     if not raw_results:
+        audit_event(
+            "validation_nodata",
+            action_id=evidence.action_id,
+            rule_id=rule.rule_id,
+        )
         return RawValidationResult(
             action_id=evidence.action_id,
             rule_id=rule.rule_id,

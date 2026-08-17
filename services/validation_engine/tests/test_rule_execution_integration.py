@@ -106,7 +106,6 @@ def test_execute_rules_generates_one_raw_result_per_rule():
     assert results[0].confidence == 1.0  # DET-001 had seeded results
     assert results[1].no_data is True    # DET-999 had none
 
-
 def test_full_pipeline_all_fixture_events_produce_a_raw_result():
     """Evidence event input -> detection rule execution -> raw
     validation result generation, run across the entire fixture set."""
@@ -122,3 +121,36 @@ def test_full_pipeline_all_fixture_events_produce_a_raw_result():
 
     assert len(all_results) == len(events)
     assert all(isinstance(r, RawValidationResult) for r in all_results)
+
+class FailingConnector(MockConnector):
+    def query(self, query_str, time_range):
+        raise ConnectionError("SIEM connector unavailable")
+
+
+def test_raw_result_is_no_data_when_connector_fails():
+    connector = FailingConnector()
+
+    result = execute_rule(
+        RANSOMWARE_EVIDENCE,
+        RANSOMWARE_RULE,
+        connector,
+    )
+
+    assert result.no_data is True
+    assert result.confidence == 0.0
+    assert result.matched is False
+    assert result.raw_results == []
+
+def test_connector_failure_creates_audit_log(caplog):
+    connector = FailingConnector()
+
+    with caplog.at_level("INFO", logger="validation_engine.audit"):
+        result = execute_rule(
+            RANSOMWARE_EVIDENCE,
+            RANSOMWARE_RULE,
+            connector,
+        )
+
+    assert result.no_data is True
+    assert "validation_started" in caplog.text
+    assert "connector_failure" in caplog.text
