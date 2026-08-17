@@ -94,26 +94,63 @@ def test_all_frameworks_are_mapped():
         ]
 
 
+
+def test_compliance_is_met_with_validated_evidence():
+    verdict = make_verdict("Detected")
+
+    from ve_app.control_mapping import get_compliance_status
+
+    status = get_compliance_status(
+        verdict,
+        ["EV001"],
+    )
+
+    assert status == "Met"
+
+
+def test_compliance_is_not_met_without_evidence_reference():
+    verdict = make_verdict("Detected")
+    verdict.matched_evidence_ref = None
+
+    from ve_app.control_mapping import get_compliance_status
+
+    status = get_compliance_status(
+        verdict,
+        [],
+    )
+
+    assert status == "NotMet"
+
+
+def test_compliance_is_not_met_when_evidence_reference_is_invalid():
+    verdict = make_verdict("Detected")
+
+    from ve_app.control_mapping import get_compliance_status
+
+    status = get_compliance_status(
+        verdict,
+        ["EV999"],
+    )
+
+    assert status == "NotMet"
+
+
 @pytest.mark.parametrize(
     "verdict_value",
     [
-        "Detected",
         "Missed",
         "Partial",
         "NoData",
     ],
 )
-def test_mapping_preserves_verdict(verdict_value):
-    registry = FakeControlRegistry()
+def test_non_detected_verdict_can_never_be_marked_met(verdict_value):
     verdict = make_verdict(verdict_value)
 
-    map_verdict_to_controls(
+    from ve_app.control_mapping import get_compliance_status
+
+    status = get_compliance_status(
         verdict,
-        "NIST CSF 2.0",
-        registry,
+        ["EV001"],
     )
 
-    assert registry.calls[-1] == (
-        "NIST CSF 2.0",
-        verdict_value,
-    )
+    assert status == "NotMet"
