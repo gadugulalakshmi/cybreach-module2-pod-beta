@@ -154,3 +154,80 @@ def test_connector_failure_creates_audit_log(caplog):
     assert result.no_data is True
     assert "validation_started" in caplog.text
     assert "connector_failure" in caplog.text
+
+def test_simultaneous_attacks_are_validated_independently():
+    """
+    Week 9 edge case:
+    Two attack events occur at the same timestamp.
+
+    Each attack must be validated independently and must not
+    overwrite or interfere with the other attack's result.
+    """
+    attack_one = RANSOMWARE_EVIDENCE.model_copy(
+        update={
+            "action_id": "act-simultaneous-001",
+            "timestamp": RANSOMWARE_EVIDENCE.timestamp,
+            "expected_observable": "vssadmin.exe invoked with cipher /e",
+        }
+    )
+
+    attack_two = RANSOMWARE_EVIDENCE.model_copy(
+        update={
+            "action_id": "act-simultaneous-002",
+            "timestamp": RANSOMWARE_EVIDENCE.timestamp,
+            "expected_observable": "wbadmin.exe invoked with encryption flag",
+        }
+    )
+
+    rule_one = DetectionRule(
+        rule_id="DET-SIM-001",
+        technique_ref="T1486",
+        query_str="DET-SIM-001",
+    )
+
+    rule_two = DetectionRule(
+        rule_id="DET-SIM-002",
+        technique_ref="T1486",
+        query_str="DET-SIM-002",
+    )
+
+    connector = make_connector(
+        {
+            "DET-SIM-001": [
+                {
+                    "observable": "vssadmin.exe invoked with cipher /e",
+                    "timestamp": RANSOMWARE_EVIDENCE.timestamp,
+                }
+            ],
+            "DET-SIM-002": [
+                {
+                    "observable": "wbadmin.exe invoked with encryption flag",
+                    "timestamp": RANSOMWARE_EVIDENCE.timestamp,
+                }
+            ],
+        }
+    )
+
+    result_one = execute_rule(
+        attack_one,
+        rule_one,
+        connector,
+    )
+
+    result_two = execute_rule(
+        attack_two,
+        rule_two,
+        connector,
+    )
+
+    assert result_one.action_id == "act-simultaneous-001"
+    assert result_two.action_id == "act-simultaneous-002"
+
+    assert result_one.matched is True
+    assert result_two.matched is True
+
+    assert result_one.confidence == 1.0
+    assert result_two.confidence == 1.0
+
+    assert result_one.rule_id == "DET-SIM-001"
+    assert result_two.rule_id == "DET-SIM-002"
