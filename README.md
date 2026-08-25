@@ -149,3 +149,73 @@ through the Validation Engine, and prints a verdict for each one.
 
 ### Validation
 - 105 validation engine tests passed successfully.
+
+## Week 9 – Validation Engine & Outcome Classifier Optimization
+
+### Objectives
+
+Week 9 focused on improving the Validation Engine and Outcome Classifier
+through code review, confidence-score optimization, edge-case testing,
+concurrent validation, and performance testing.
+
+### Completed Tasks
+
+- Comprehensive review of the Validation Engine and Outcome Classifier
+- Optimized confidence score calculation for accuracy
+- Improved observable matching logic
+- Prevented duplicate tokens from artificially increasing confidence
+- Prevented unrelated long observables from producing false confidence
+- Added edge-case confidence scoring tests
+- Added simultaneous attack test scenarios
+- Added overlapping time-window test scenarios
+- Added multi-connector validation tests
+- Verified parallel connector execution
+- Added 1,000-event performance/load test
+- Added Validation Engine configuration documentation
+
+### Confidence Score Model
+
+| Match Type | Score |
+|---|---:|
+| Exact match | 1.0 |
+| Strong substring match | 0.7 |
+| Partial token overlap | 0.0 – 0.6 |
+| No meaningful overlap | 0.0 |
+
+The confidence scoring logic is case-insensitive and uses meaningful tokens
+to reduce false-positive confidence.
+
+Duplicate tokens are not allowed to artificially increase the confidence
+score.
+
+### Multi-Connector Validation
+
+The Validation Engine supports parallel execution across multiple SIEM
+connectors using `ThreadPoolExecutor`.
+
+This allows simultaneous connector validation while reducing overall
+execution time.
+
+### Edge-Case Testing
+
+Week 9 includes tests for:
+
+- Simultaneous attacks
+- Overlapping time windows
+- Multi-connector validation
+- Duplicate observable tokens
+- Special-character observables
+- Long unrelated observables
+- No-overlap scenarios
+- Connector failures
+- Out-of-window SIEM results
+
+### Performance Testing
+
+The Validation Engine was tested with 1,000 evidence events.
+
+Latest performance result:
+
+```text
+Processed 1000 events in 0.0103 seconds
+Average time per event: 0.0103 ms

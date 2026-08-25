@@ -1,28 +1,56 @@
 """
-Observable Matching -- Pod Beta, Week 4.
+Observable Matching -- Pod Beta, Week 9.
 
-Compares an EvidenceEvent's expected_observable against the observable
-text returned by a SIEM connector's query results, and scores how well
-they match. This is the "Confidence Score Logic: weighted matching" and
-"Observable Matching" pieces of Week 4:
+Confidence scoring between an expected observable and a SIEM observable.
 
-    Exact field matches   -> higher weight
-    Partial field matches -> lower weight
-    No match at all       -> 0.0
-
-Score bands returned by match_observable():
-    1.0            exact match (case-insensitive)
-    0.7            one string contains the other (substring match)
-    0.0 - 0.6      partial token overlap, scaled by how much overlaps
-    0.0            no overlap at all
+Scoring:
+    Exact match             -> 1.0
+    Strong substring match  -> 0.7
+    Partial token overlap   -> 0.0 - 0.6
+    No meaningful overlap   -> 0.0
 """
 
+from collections import Counter
 
-def match_observable(expected_observable: str, siem_observable: str) -> float:
+STOP_WORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "by",
+    "for",
+    "from",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "with",
+}
+
+
+def _meaningful_tokens(value: str) -> set[str]:
+    """Return unique, non-generic tokens."""
+    return {
+        token
+        for token in value.split()
+        if token and token not in STOP_WORDS
+    }
+
+
+def match_observable(
+    expected_observable: str,
+    siem_observable: str,
+) -> float:
     """
-    Weighted comparison between what we expected to see (from the
-    evidence event) and what the SIEM connector actually returned.
+    Compare expected and SIEM observables and return a confidence score.
     """
+
     if not siem_observable:
         return 0.0
 
@@ -32,34 +60,65 @@ def match_observable(expected_observable: str, siem_observable: str) -> float:
     if not expected:
         return 0.0
 
-    # Exact field match -> highest weight.
+    # Exact match.
     if expected == actual:
         return 1.0
 
-    # One fully contains the other -> strong (but not perfect) match.
-    if expected in actual or actual in expected:
-        return 0.7
+    expected_tokens = _meaningful_tokens(expected)
+    actual_tokens = _meaningful_tokens(actual)
 
-    # Partial field match: score by token overlap, capped below the
-    # substring-match band so a handful of shared words never outscores
-    # an actual substring match.
-    expected_tokens = set(expected.split())
-    actual_tokens = set(actual.split())
-    if not expected_tokens:
+    if not expected_tokens or not actual_tokens:
         return 0.0
 
+       # Strong substring match.
+    # A true substring match gets 0.7, but repeated tokens in the
+    # expected observable must not artificially increase confidence.
+    expected_counts = Counter(expected.split())
+    actual_counts = Counter(actual.split())
+
+    has_duplicate_expected_tokens = any(
+        count > 1 for count in expected_counts.values()
+    )
+
+    if not has_duplicate_expected_tokens:
+        if expected in actual or actual in expected:
+            if len(expected_tokens) >= 2 and len(actual_tokens) >= 2:
+                return 0.7
+
+    # Partial token overlap.
     overlap = expected_tokens & actual_tokens
+
+    if not overlap:
+        return 0.0
+
+    # A single shared token is not enough evidence for a long
+    # expected observable.
+    if len(overlap) == 1 and len(expected_tokens) >= 4:
+        return 0.0
+
     ratio = len(overlap) / len(expected_tokens)
-    return round(ratio * 0.6, 2)
+
+    # Partial matches must remain below substring confidence.
+    return round(min(ratio * 0.6, 0.6), 2)
 
 
-def best_observable_match(expected_observable: str, siem_results: list) -> float:
+def best_observable_match(
+    expected_observable: str,
+    siem_results: list,
+) -> float:
     """
-    Given several SIEM query results, returns the single best observable
-    match score among them (a query can return multiple rows; we only
-    care about the strongest evidence).
+    Return the strongest match among multiple SIEM results.
     """
+
     if not siem_results:
         return 0.0
-    scores = [match_observable(expected_observable, r.get("observable", "")) for r in siem_results]
+
+    scores = [
+        match_observable(
+            expected_observable,
+            result.get("observable", ""),
+        )
+        for result in siem_results
+    ]
+
     return max(scores)
