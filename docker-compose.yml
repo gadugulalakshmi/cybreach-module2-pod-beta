@@ -51,7 +51,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      CLUSTER_ID: "M2ValidatorKRaftCluster01"
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:

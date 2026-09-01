@@ -219,3 +219,43 @@ Latest performance result:
 ```text
 Processed 1000 events in 0.0103 seconds
 Average time per event: 0.0103 ms
+```
+
+### Validation Engine Configuration Guide
+
+The Validation Engine uses Docker Compose for local infrastructure and
+environment/configuration settings for Redis, PostgreSQL, and Kafka.
+
+#### Prerequisites
+
+- Python 3.13+
+- Docker Desktop
+- Docker Compose
+- Git
+
+#### Python Environment Setup
+
+Install the required Python dependencies:
+
+```powershell
+pip install -r requirements.txt
+
+
+### Validation Engine Configuration Guide
+
+The Validation Engine uses Docker Compose for local infrastructure and
+environment/configuration settings for Redis, PostgreSQL, and Kafka.
+
+#### Prerequisites
+
+- Python 3.13+
+- Docker Desktop
+- Docker Compose
+- Git
+
+#### Python Environment Setup
+
+Install the required Python dependencies:
+
+```powershell
+pip install -r requirements.txt
