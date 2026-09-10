@@ -40,3 +40,7 @@ class Verdict(BaseModel):
     causal_chain: List[str] = Field(default_factory=list)
     rule_id: str
     technique_ref: str
+    integrity_hash: Optional[str] = Field(
+        default=None,
+        description="SHA-256 integrity hash for detecting verdict tampering",
+    )
