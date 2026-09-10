@@ -9,6 +9,7 @@ Run locally with:
     uvicorn ve_app.main:app --reload --port 8002
 """
 from typing import List, Optional
+from functools import lru_cache
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -45,6 +46,11 @@ class BatchValidateRequest(BaseModel):
     evidence: List[EvidenceEvent]
     rules: List[DetectionRule]
 
+@lru_cache(maxsize=1024)
+def _normalize_keywords(keywords: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(kw.lower() for kw in keywords)
+
+
 def compute_confidence(evidence: EvidenceEvent, rule: DetectionRule) -> float:
     """
     Weighted confidence scoring (Week 2).
@@ -67,12 +73,13 @@ def compute_confidence(evidence: EvidenceEvent, rule: DetectionRule) -> float:
         return 0.9
 
     observable_text = evidence.expected_observable.lower()
-    matched = sum(1 for kw in rule.keywords if kw.lower() in observable_text)
-    keyword_ratio = matched / len(rule.keywords)
+    normalized_keywords = _normalize_keywords(tuple(rule.keywords))
+    matched = sum(1 for kw in normalized_keywords if kw in observable_text)
+    keyword_ratio = matched / len(normalized_keywords)
 
     score = 0.2 + (0.8 * keyword_ratio)
     return round(min(score, 1.0), 2)
-
+    return round(min(score, 1.0), 2)
 
 def build_verdict(evidence: EvidenceEvent, rule: Optional[DetectionRule], confidence: float) -> Verdict:
     if rule is None:
@@ -152,3 +159,5 @@ async def validate_batch(req: BatchValidateRequest) -> List[Verdict]:
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "validation_engine"}
+
+
