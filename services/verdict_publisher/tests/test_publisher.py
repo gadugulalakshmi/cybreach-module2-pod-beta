@@ -35,7 +35,10 @@ def test_publish_detected_verdict():
     response = client.post("/publish", json=payload)
 
     assert response.status_code == 200
-    assert response.json() == payload
+    response_data = response.json()
+    assert response_data["integrity_hash"]
+    assert response_data["integrity_hash"] != ""
+    assert {k: v for k, v in response_data.items() if k != "integrity_hash"} == payload
 
 
 def test_publish_missed_verdict():

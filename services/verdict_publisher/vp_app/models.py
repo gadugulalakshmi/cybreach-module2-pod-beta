@@ -12,3 +12,4 @@ class PublishedVerdict(BaseModel):
     mttd_seconds: Optional[float] = None
     matched_evidence_ref: Optional[str] = None
     causal_chain: List[str] = Field(default_factory=list)
+    integrity_hash: Optional[str] = None

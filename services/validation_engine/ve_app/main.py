@@ -6,8 +6,10 @@ takes an EvidenceEvent + a list of applicable detection rules and produces
 a raw Verdict.
 
 Run locally with:
+
     uvicorn ve_app.main:app --reload --port 8002
 """
+
 from typing import List, Optional
 
 from fastapi import FastAPI
@@ -24,7 +26,8 @@ class DetectionRule(BaseModel):
     (Pod Alpha) ships its real output. Matches on MITRE technique (Task 7)
     and, optionally, asset class (Task 8), then refines the score using
     keyword overlap against the evidence's expected_observable text (a
-    stand-in for real SIEM query results)."""
+    stand-in for real SIEM query results).
+    """
 
     rule_id: str
     technique_ref: str
@@ -45,6 +48,7 @@ class BatchValidateRequest(BaseModel):
     evidence: List[EvidenceEvent]
     rules: List[DetectionRule]
 
+
 def compute_confidence(evidence: EvidenceEvent, rule: DetectionRule) -> float:
     """
     Weighted confidence scoring (Week 2).
@@ -56,10 +60,12 @@ def compute_confidence(evidence: EvidenceEvent, rule: DetectionRule) -> float:
     rule's expected keyword footprint actually shows up in the evidence.
 
     Score bands (matches the Outcome Classifier's thresholds):
+
         0.7 - 1.0  -> Detected
         0.3 - 0.69 -> Partial
         0.0 - 0.29 -> Missed
     """
+
     if rule.technique_ref != evidence.technique_ref:
         return 0.0
 
@@ -67,20 +73,35 @@ def compute_confidence(evidence: EvidenceEvent, rule: DetectionRule) -> float:
         return 0.9
 
     observable_text = evidence.expected_observable.lower()
-    matched = sum(1 for kw in rule.keywords if kw.lower() in observable_text)
-    keyword_ratio = matched / len(rule.keywords)
 
+    normalized_keywords = tuple(keyword.lower() for keyword in rule.keywords)
+
+    matched = sum(
+        1
+        for keyword in normalized_keywords
+        if keyword in observable_text
+    )
+
+    keyword_ratio = matched / len(normalized_keywords)
     score = 0.2 + (0.8 * keyword_ratio)
+
     return round(min(score, 1.0), 2)
 
 
-def build_verdict(evidence: EvidenceEvent, rule: Optional[DetectionRule], confidence: float) -> Verdict:
+def build_verdict(
+    evidence: EvidenceEvent,
+    rule: Optional[DetectionRule],
+    confidence: float,
+) -> Verdict:
     if rule is None:
         return Verdict(
             action_id=evidence.action_id,
             verdict="NoData",
             confidence=0.0,
-            causal_chain=["No detection rule found for technique " + evidence.technique_ref],
+            causal_chain=[
+                "No detection rule found for technique "
+                + evidence.technique_ref
+            ],
             rule_id="NONE",
             technique_ref=evidence.technique_ref,
         )
@@ -96,11 +117,23 @@ def build_verdict(evidence: EvidenceEvent, rule: Optional[DetectionRule], confid
         action_id=evidence.action_id,
         verdict=verdict,
         confidence=confidence,
-        matched_evidence_ref=evidence.action_id if verdict != "Missed" else None,
+        matched_evidence_ref=(
+            evidence.action_id if verdict != "Missed" else None
+        ),
         causal_chain=[
             f"Evidence event received: {evidence.action_id}",
-            f"Rule considered: {rule.rule_id} (technique {rule.technique_ref})",
-            f"Keywords checked: {rule.keywords}" if rule.keywords else "No keyword list on rule; used flat technique-match score",
+            (
+                f"Rule considered: {rule.rule_id} "
+                f"(technique {rule.technique_ref})"
+            ),
+            (
+                f"Keywords checked: {rule.keywords}"
+                if rule.keywords
+                else (
+                    "No keyword list on rule; used flat "
+                    "technique-match score"
+                )
+            ),
             f"Confidence computed: {confidence}",
         ],
         rule_id=rule.rule_id,
@@ -108,7 +141,10 @@ def build_verdict(evidence: EvidenceEvent, rule: Optional[DetectionRule], confid
     )
 
 
-def validate_evidence(evidence: EvidenceEvent, rules: List[DetectionRule]) -> Verdict:
+def validate_evidence(
+    evidence: EvidenceEvent,
+    rules: List[DetectionRule],
+) -> Verdict:
     """
     Core validation logic, extracted so it can be called directly (e.g. by
     the evidence replay harness in ingestion.py) without going through the
@@ -122,14 +158,18 @@ def validate_evidence(evidence: EvidenceEvent, rules: List[DetectionRule]) -> Ve
     per the Validation Engine's original design (Technical Doc Section
     3.3: "if best_verdict is None or v.confidence > best_verdict.confidence").
     """
+
     applicable = find_matching_rules(evidence, rules)
+
     if not applicable:
         return build_verdict(evidence, None, 0.0)
 
     best_rule = None
     best_confidence = -1.0
+
     for rule in applicable:
         confidence = compute_confidence(evidence, rule)
+
         if confidence > best_confidence:
             best_rule = rule
             best_confidence = confidence
@@ -140,6 +180,8 @@ def validate_evidence(evidence: EvidenceEvent, rules: List[DetectionRule]) -> Ve
 @app.post("/validate", response_model=Verdict)
 async def validate(req: ValidateRequest) -> Verdict:
     return validate_evidence(req.evidence, req.rules)
+
+
 @app.post("/validate/batch", response_model=List[Verdict])
 async def validate_batch(req: BatchValidateRequest) -> List[Verdict]:
     """Validate multiple evidence events in a single request."""
@@ -148,6 +190,7 @@ async def validate_batch(req: BatchValidateRequest) -> List[Verdict]:
         validate_evidence(evidence, req.rules)
         for evidence in req.evidence
     ]
+
 
 @app.get("/health")
 async def health():
