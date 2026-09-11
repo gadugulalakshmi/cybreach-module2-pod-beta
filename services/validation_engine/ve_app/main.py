@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from ve_app.models import EvidenceEvent, Verdict
+from ve_app.verdict_integrity import attach_integrity_hash
 from ve_app.rule_matching import find_matching_rules
 
 app = FastAPI(title="Validation Engine", version="0.2.0")
@@ -113,7 +114,7 @@ def build_verdict(
     else:
         verdict = "Missed"
 
-    return Verdict(
+    verdict_obj = Verdict(
         action_id=evidence.action_id,
         verdict=verdict,
         confidence=confidence,
@@ -139,6 +140,7 @@ def build_verdict(
         rule_id=rule.rule_id,
         technique_ref=evidence.technique_ref,
     )
+    return attach_integrity_hash(verdict_obj)
 
 
 def validate_evidence(
