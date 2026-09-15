@@ -1,38 +1,109 @@
-# Week 6 – Validation Engine Performance Enhancements
+# Week 6 - Performance Enhancements, Caching & Parallel Validation
 
-## Task
+## Objective
 
-The main tasks for Week 6 were:
+Week 6 focused on improving the Validation Engine performance by introducing batch validation, Redis-based caching, parallel connector execution, and load testing.
 
-1. Add batch validation support.
-2. Implement a batch validation API.
-3. Cache SIEM query results using Redis.
-4. Configure cache expiration using TTL.
-5. Execute multiple SIEM connectors in parallel.
-6. Add tests for parallel connector execution.
-7. Perform a performance load test using 1,000 mock evidence events.
-
-## What I Implemented
+## Tasks Completed
 
 ### 1. Batch Validation
 
-Added support for processing multiple evidence events in a single validation request.
+**File:** `validation_engine/ve_app/main.py`
 
-**What I did:**
-- Added batch validation support.
-- Enabled multiple evidence events to be processed together.
-- Added the `/validate/batch` endpoint.
+Extended the Validation Engine to support batch validation of multiple evidence events.
 
-### 2. Redis Query-Result Caching
+**Key work:**
 
-Implemented Redis caching to avoid repeatedly executing the same SIEM queries.
+* Added batch validation support.
+* Processed multiple validation requests efficiently.
+* Reused the existing validation workflow for batch processing.
 
-**What I did:**
-- Added Redis-based query-result caching.
-- Configured automatic cache expiration.
-- Set the default cache TTL to **60 seconds**.
+### 2. Redis Caching
 
-**Cache configuration:**
+**File:** `validation_engine/ve_app/cache.py`
+
+Implemented Redis-based caching to reduce repeated validation processing.
+
+**Key work:**
+
+* Added cache support for validation results.
+* Implemented a 60-second cache TTL.
+* Added cache retrieval and storage handling.
+* Reduced unnecessary repeated validation work.
+
+### 3. Parallel Connector Execution
+
+**File:** `validation_engine/ve_app/rule_execution.py`
+
+Optimized evidence retrieval by executing independent SIEM connector operations in parallel.
+
+**Key work:**
+
+* Added parallel connector execution.
+* Used concurrent processing for independent connector operations.
+* Improved validation throughput when multiple evidence sources are involved.
+
+### 4. Validation API Testing
+
+**File:** `validation_engine/tests/test_validate.py`
+
+Added validation API test coverage for the enhanced validation workflow.
+
+### 5. Cache Testing
+
+**File:** `validation_engine/tests/test_cache.py`
+
+Added tests covering Redis cache behavior and cached validation results.
+
+### 6. Parallel Connector Testing
+
+**File:** `validation_engine/tests/test_parallel_connectors.py`
+
+Added tests to verify concurrent connector execution and the parallel validation workflow.
+
+### 7. Performance Load Testing
+
+**File:** `validation_engine/tests/test_performance_load.py`
+
+Added load testing for processing a large number of validation events.
+
+The performance tests were used to evaluate the Validation Engine under higher event volumes.
+
+## Implementation Files
 
 ```text
-DEFAULT_CACHE_TTL_SECONDS = 60
+Week6/
+└── validation_engine/
+    ├── ve_app/
+    │   ├── cache.py
+    │   ├── main.py
+    │   └── rule_execution.py
+    └── tests/
+        ├── test_cache.py
+        ├── test_parallel_connectors.py
+        ├── test_performance_load.py
+        └── test_validate.py
+```
+
+## Testing & Validation
+
+Automated tests were added for:
+
+* Validation API processing
+* Redis caching
+* Parallel connector execution
+* Performance/load processing
+
+The Week 6 implementation was validated through the project pytest test suite.
+
+## Result
+
+Week 6 improved the Validation Engine's performance and scalability by adding:
+
+* Batch validation
+* Redis caching with TTL
+* Parallel SIEM connector execution
+* Concurrent processing tests
+* Load testing for high-volume validation
+
+These enhancements established a more efficient validation pipeline for processing multiple evidence events and retrieving evidence from multiple connectors.
