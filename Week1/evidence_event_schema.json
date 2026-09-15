@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cybreach.internal/contracts/evidence_event.schema.json",
+  "title": "EvidenceEvent",
+  "description": "Frozen contract published by Module 1 (The Strike Engine) and consumed by Module 2 (The Validator). Version v1.0.",
+  "type": "object",
+  "required": ["action_id", "correlation_key", "technique_ref", "target_asset_ref", "expected_observable", "timestamp"],
+  "properties": {
+    "action_id": { "type": "string" },
+    "correlation_key": { "type": "string" },
+    "technique_ref": { "type": "string", "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$" },
+    "target_asset_ref": { "type": "string" },
+    "expected_observable": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}
