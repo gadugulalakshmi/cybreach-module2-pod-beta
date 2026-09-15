@@ -1,50 +1,53 @@
-# Week 3 – Evidence Ingestion & Rule Matching
+# Week 3 - Evidence Ingestion, Replay & Rule Matching
 
-## Task
+## Objective
 
-Implement the evidence ingestion pipeline and rule-matching functionality so that evidence events can be processed and matched against validation rules.
+Week 3 focused on implementing the evidence ingestion and replay pipeline and adding rule matching based on MITRE ATT&CK technique IDs and asset classes.
 
-## What I Implemented
+## Tasks Completed
 
-- Implemented the Evidence Event ingestion pipeline.
-- Read evidence events from local fixtures.
-- Fed evidence into the Validation Engine.
-- Developed a mock evidence replay mechanism.
-- Simulated the Module 1 evidence event stream.
-- Implemented rule matching logic.
-- Added MITRE Technique ID based rule matching.
-- Added Asset Class based rule matching.
-- Added tests for evidence replay and rule matching.
+### 1. Evidence Event Ingestion
+
+- Implemented loading of frozen Module 1 evidence fixtures.
+- Converted fixture records into validated `EvidenceEvent` models.
+- Added timestamp-based ordering for replayed evidence events.
+
+### 2. Mock Evidence Replay
+
+- Implemented a replay harness to simulate the Module 1 evidence event stream.
+- Fed replayed evidence events into the Validation Engine.
+- Added callback support for processing generated verdicts.
+
+### 3. Rule Matching
+
+- Implemented exact MITRE ATT&CK technique matching.
+- Added asset-class inference from target asset references.
+- Added wildcard and scoped asset-class matching.
+- Added multi-rule matching and best-match validation behavior.
+
+### 4. Integration Testing
+
+- Added tests for evidence ingestion and replay.
+- Added tests for technique and asset-class matching.
+- Added end-to-end replay and rule-matching coverage across the evidence fixture stream.
 
 ## Implementation
 
-### Evidence Ingestion
+- `validation_engine/ve_app/ingestion.py`
+- `validation_engine/ve_app/rule_matching.py`
+- `validation_engine/tests/test_ingestion.py`
+- `validation_engine/tests/test_rule_matching.py`
+- `validation_engine/tests/test_replay_and_matching.py`
+- `validation_engine/tests/fixtures/mock_evidence_events.json`
 
-**File:** `services/validation_engine/ve_app/ingestion.py`
+## Testing & Validation
 
-Implemented the ingestion logic for processing evidence events and feeding them into the Validation Engine.
-
-### Rule Matching
-
-**File:** `services/validation_engine/ve_app/rule_matching.py`
-
-Implemented rule matching based on:
-
-- MITRE Technique ID
-- Asset Class
-
-### Evidence Replay
-
-Implemented a mock evidence replay mechanism to simulate the Module 1 evidence event stream during local testing.
-
-## Testing
-
-Relevant tests include:
-
-- `services/validation_engine/tests/test_ingestion.py`
-- `services/validation_engine/tests/test_rule_matching.py`
-- `services/validation_engine/tests/test_replay_and_matching.py`
+- Historical Week 3 validation: **47/47 tests passed successfully.**
+- Verified evidence replay ordering.
+- Verified MITRE technique matching.
+- Verified asset-class matching.
+- Verified multi-rule selection and NoData behavior.
 
 ## Result
 
-Week 3 established the Evidence Ingestion and Rule Matching pipeline required for the Validation Engine to process evidence and identify matching validation rules.
+Week 3 established the evidence ingestion and replay workflow and added deterministic MITRE technique and asset-class rule matching with end-to-end test coverage.
