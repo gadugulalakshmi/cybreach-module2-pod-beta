@@ -2,7 +2,7 @@
 
 ## Objective
 
-Week 8 focused on improving Validation Engine reliability, adding audit logging for validation execution, and strengthening compliance verification using evidence-backed decisions.
+Week 8 focused on improving Validation Engine reliability, adding audit logging for validation execution, and progressing evidence-backed compliance verification.
 
 ## Tasks Completed
 
@@ -33,24 +33,26 @@ Added audit logging for important validation activities.
 * Improved traceability of validation operations.
 * Added structured audit information for validation processing.
 
-### 3. Evidence-Backed Compliance Verification
+### 3. Evidence-Backed Compliance Verification — In Progress
 
 **File:** `validation_engine/ve_app/control_mapping.py`
 
-Extended compliance control mapping to ensure that compliance decisions are supported by valid evidence.
+Added the initial evidence-backed compliance verification logic for regulatory control decisions.
 
 **Key work:**
 
-* Validated evidence references associated with controls.
-* Allowed a control to be marked as `Met` only when valid supporting evidence was available.
-* Treated missing or invalid evidence as `NotMet`.
-* Prevented unsuccessful validation outcomes from being incorrectly treated as compliant.
+* Added validation of evidence references associated with verdicts.
+* Added logic to return `Met` only when the verdict is `Detected` and a valid evidence reference is available.
+* Added `NotMet` handling for missing or invalid evidence references.
+* Prevented `Missed`, `Partial`, and `NoData` verdicts from being treated as compliant.
 
 **Test:** `validation_engine/tests/test_control_mapping.py`
 
+The verification helpers and unit tests were added during Week 8. End-to-end integration of evidence-backed compliance verification into the complete validation workflow remained in progress.
+
 ### 4. Compliance Validation Testing
 
-Added automated tests covering evidence-backed compliance verification and validation execution behavior.
+Added automated tests covering the evidence-backed compliance verification logic.
 
 Testing covered:
 
@@ -58,8 +60,7 @@ Testing covered:
 * Missing evidence scenarios
 * Invalid evidence scenarios
 * Compliance control status decisions
-* Validation execution behavior
-* Connector/evidence retrieval failure handling
+* Non-detected verdict handling
 
 ## Implementation Files
 
@@ -77,6 +78,8 @@ Week8/
 
 ## Result
 
-Week 8 improved the reliability and compliance capabilities of the Validation Engine.
+Week 8 improved the reliability and auditability of the Validation Engine.
 
-The implementation added audit logging, safer validation execution, and evidence-backed compliance verification so that compliance decisions are based on valid supporting evidence rather than validation status alone.
+The implementation added safer validation execution, connector failure handling, structured audit logging, and the initial evidence-backed compliance verification logic.
+
+The evidence-backed compliance verification feature was partially implemented during Week 8, with end-to-end integration remaining in progress.
