@@ -1,116 +1,103 @@
-# Week 9 – Validation Engine & Outcome Classifier Optimization
+@'
+# Week 9 - Validation Engine Optimization & Edge-Case Testing
 
-## Task
+## Objective
 
-The main tasks for Week 9 were:
+Week 9 focused on improving the Validation Engine through observable matching optimization, confidence-score edge-case testing, concurrent validation scenarios, and integration testing.
 
-1. Perform a comprehensive code review of the Validation Engine and Outcome Classifier.
-2. Optimize the confidence score algorithm for accuracy and performance.
-3. Improve observable matching.
-4. Add edge-case test scenarios.
-5. Test simultaneous attacks.
-6. Test overlapping time windows.
-7. Test multi-connector validation.
-8. Verify parallel connector execution.
-9. Perform a performance test using 1,000 events.
-10. Create Validation Engine configuration documentation.
+## Tasks Completed
 
-## What I Implemented
+### 1. Observable Matching Improvements
 
-### 1. Confidence Score Optimization
+**File:** `validation_engine/ve_app/observable_matching.py`
 
-Improved the confidence scoring logic to make matching more accurate and prevent false confidence.
+Improved observable matching logic used during validation.
 
-**What I implemented:**
-
-- Optimized confidence score calculation.
-- Added meaningful token-based matching.
+**Key work:**
+- Improved matching behavior for observable values.
+- Reduced false confidence from unrelated observable content.
+- Handled meaningful token matching more carefully.
 - Prevented duplicate tokens from artificially increasing confidence.
-- Prevented unrelated long observables from producing false confidence.
-- Improved case-insensitive matching.
 
-### 2. Observable Matching Improvements
+### 2. Observable Matching Testing
 
-Improved observable matching so that evidence is compared more accurately against expected values.
+**File:** `validation_engine/tests/test_observable_matching.py`
 
-**Match strength:**
-
-| Match Type | Score |
-|------------|-------|
-| Exact | 1.0 |
-| Strong substring | 0.7 |
-| Partial token overlap | 0.0–0.6 |
-| No meaningful overlap | 0.0 |
-
-### 3. Edge-Case Testing
-
-Added tests for scenarios that can create incorrect validation results.
-
-**Test scenarios included:**
-
-- Simultaneous attacks
-- Overlapping time windows
-- Multi-connector validation
-- Duplicate tokens
-- Special characters
-- Long unrelated observables
-- No meaningful overlap
-- Connector failures
-- Out-of-window results
-
-### 4. Multi-Connector Validation
-
-Verified validation when evidence is retrieved from multiple connectors.
-
-**What I implemented:**
-
-- Tested multiple SIEM connectors.
-- Verified parallel connector execution.
-- Used the existing `ThreadPoolExecutor` based execution model.
-- Tested connector failure scenarios.
-
-### 5. Performance Testing
-
-Performed a load test using **1,000 mock evidence events**.
-
-**Result:**
-
-- Events processed: 1,000
-- Processing time: approximately 0.0103 seconds
-- Average processing time: approximately 0.0103 ms/event
-
-### 6. Configuration Documentation
-
-Created documentation describing the requirements and configuration needed to run the Validation Engine.
-
-**Configuration includes:**
-
-- Python 3.13+
-- Docker Desktop
-- Docker Compose
-- Git
-- Python dependencies
-- `pip install -r requirements.txt`
-
-## Testing
-
-The optimized Validation Engine and Outcome Classifier were tested using the project test suite.
+Added tests for observable matching behavior and confidence-related edge cases.
 
 Testing covered:
 
-- Confidence scoring
+- Exact observable matches
+- Strong substring matches
+- Partial token overlap
+- No meaningful overlap
+- Duplicate tokens
+- Special-character observables
+- Long unrelated observables
+
+### 3. Simultaneous Attack Validation
+
+**File:** `validation_engine/tests/test_simultaneous_attacks.py`
+
+Added test scenarios for handling multiple attacks being processed at the same time.
+
+The tests verify that validation results remain correctly associated with their corresponding evidence and attack scenarios.
+
+### 4. Overlapping Time-Window Validation
+
+**File:** `validation_engine/tests/test_overlapping_time_windows.py`
+
+Added test coverage for validation scenarios where multiple attacks or evidence events have overlapping time windows.
+
+The tests verify that evidence is evaluated against the appropriate validation window.
+
+### 5. Multi-Connector Validation
+
+**File:** `validation_engine/tests/test_multi_connector_validation.py`
+
+Added tests for validation using multiple SIEM/evidence connectors.
+
+The tests verify:
+
+- Multiple connector execution
+- Parallel connector validation
+- Connector result handling
+- Connector failure scenarios
+
+### 6. Validation Engine Integration Testing
+
+**File:** `validation_engine/tests/test_rule_execution_integration.py`
+
+Extended integration testing for the Validation Engine rule-execution workflow.
+
+The tests cover:
+
+- Rule execution
+- Evidence retrieval
 - Observable matching
-- Edge cases
-- Simultaneous attacks
-- Overlapping time windows
-- Multi-connector validation
-- Connector failures
-- Performance testing
+- Time-window handling
+- Validation result generation
+- Connector-related scenarios
 
-The implementation was verified with the complete test suite.
+### 7. Time-Window Testing
 
-## Result
+**File:** `validation_engine/tests/test_time_window.py`
 
-Week 9 improved the accuracy, reliability, and performance of the Validation Engine and Outcome Classifier.
+Added additional test coverage for time-window validation behavior.
 
-Confidence scoring and observable matching were optimized, edge cases were covered with additional tests, multi-connector validation was verified, and a 1,000-event performance test was completed.
+The tests verify that evidence is correctly evaluated based on the configured validation time range.
+
+## Implementation Files
+
+```text
+Week9/
+└── validation_engine/
+    ├── ve_app/
+    │   └── observable_matching.py
+    └── tests/
+        ├── test_multi_connector_validation.py
+        ├── test_observable_matching.py
+        ├── test_overlapping_time_windows.py
+        ├── test_rule_execution_integration.py
+        ├── test_simultaneous_attacks.py
+        └── test_time_window.py

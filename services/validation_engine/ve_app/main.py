@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from ve_app.models import EvidenceEvent, Verdict
 from ve_app.verdict_integrity import attach_integrity_hash
 from ve_app.rule_matching import find_matching_rules
+from ve_app.control_mapping import get_compliance_status
 
 app = FastAPI(title="Validation Engine", version="0.2.0")
 
@@ -140,6 +141,9 @@ def build_verdict(
         rule_id=rule.rule_id,
         technique_ref=evidence.technique_ref,
     )
+    compliance_status = get_compliance_status(verdict, [evidence.action_id])
+    verdict.causal_chain.append(f"Compliance verification: {compliance_status}")
+    
     return attach_integrity_hash(verdict_obj)
 
 
@@ -147,6 +151,8 @@ def validate_evidence(
     evidence: EvidenceEvent,
     rules: List[DetectionRule],
 ) -> Verdict:
+
+def validate_evidence(evidence: EvidenceEvent, rules: List[DetectionRule]) -> Verdict:
     """
     Core validation logic, extracted so it can be called directly (e.g. by
     the evidence replay harness in ingestion.py) without going through the

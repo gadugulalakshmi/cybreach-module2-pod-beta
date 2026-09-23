@@ -1,68 +1,85 @@
-# Week 8 – Validation Engine & Compliance Logic
+# Week 8 - Audit Logging & Evidence-Backed Compliance Verification
 
-## Task
+## Objective
 
-The main tasks for Week 8 were:
+Week 8 focused on improving Validation Engine reliability, adding audit logging for validation execution, and progressing evidence-backed compliance verification.
 
-1. Improve Validation Engine reliability.
-2. Handle SIEM connector failures safely.
-3. Add audit logging for validation execution.
-4. Implement evidence-backed compliance verification.
-5. Ensure compliance decisions are based on valid evidence.
+## Tasks Completed
 
-## What I Implemented
+### 1. Validation Execution Reliability
 
-### 1. SIEM Connector Failure Handling
+**File:** `validation_engine/ve_app/rule_execution.py`
 
-Improved the Validation Engine to handle connector failures without stopping the complete validation process.
+Improved validation execution to handle evidence retrieval and connector-related failures more safely.
 
-**What I implemented:**
+**Key work:**
 
-- Added robust handling for SIEM connector failures.
-- Implemented graceful degradation when a connector is unavailable.
-- Returned `NoData` when required evidence could not be retrieved because of connector failure.
+* Added handling for connector/evidence retrieval failures.
+* Prevented individual connector failures from unnecessarily stopping the validation workflow.
+* Returned appropriate `NoData` results when required evidence could not be retrieved.
+
+**Test:** `validation_engine/tests/test_rule_execution_integration.py`
 
 ### 2. Audit Logging
 
+**File:** `validation_engine/ve_app/audit_logger.py`
+
 Added audit logging for important validation activities.
 
-**What I implemented:**
+**Key work:**
 
-- Logged validation execution.
-- Logged connector failures.
-- Added logging to improve traceability of validation operations.
+* Recorded validation execution activity.
+* Recorded connector failure information.
+* Improved traceability of validation operations.
+* Added structured audit information for validation processing.
 
-### 3. Evidence-Backed Compliance Verification
+### 3. Evidence-Backed Compliance Verification — Completed
 
-Implemented compliance verification based on explicitly linked evidence.
+**File:** `validation_engine/ve_app/control_mapping.py`
 
-**What I implemented:**
+Added the initial evidence-backed compliance verification logic for regulatory control decisions.
 
-- Validated evidence references associated with compliance controls.
-- Marked a control as `Met` only when valid supporting evidence was available.
-- Treated missing or invalid evidence as `NotMet`.
-- Prevented `Missed`, `Partial`, and `NoData` validation outcomes from being marked as `Met`.
+**Key work:**
 
-### 4. Reliability Improvements
+* Added validation of evidence references associated with verdicts.
+* Added logic to return `Met` only when the verdict is `Detected` and a valid evidence reference is available.
+* Added `NotMet` handling for missing or invalid evidence references.
+* Prevented `Missed`, `Partial`, and `NoData` verdicts from being treated as compliant.
 
-Improved the Validation Engine so that individual connector or evidence problems do not cause unnecessary failures across the complete validation pipeline.
+**Test:** `validation_engine/tests/test_control_mapping.py`
 
-## Testing
+The verification helpers and unit tests were added during Week 8. End-to-end integration of evidence-backed compliance verification into the complete validation workflow remained in progress.
 
-The Week 8 implementation was tested as part of the Validation Engine test suite.
+### 4. Compliance Validation Testing
+
+Added automated tests covering the evidence-backed compliance verification logic.
 
 Testing covered:
 
-- SIEM connector failures
-- Graceful `NoData` handling
-- Validation audit logging
-- Evidence reference validation
-- Compliance control verification
-- Missing and invalid evidence scenarios
-- Validation outcomes affecting compliance status
+* Evidence reference validation
+* Missing evidence scenarios
+* Invalid evidence scenarios
+* Compliance control status decisions
+* Non-detected verdict handling
+
+## Implementation Files
+
+```text
+Week8/
+└── validation_engine/
+    ├── ve_app/
+    │   ├── audit_logger.py
+    │   ├── control_mapping.py
+    │   └── rule_execution.py
+    └── tests/
+        ├── test_control_mapping.py
+        └── test_rule_execution_integration.py
+```
 
 ## Result
 
-Week 8 improved the reliability and compliance capabilities of the Validation Engine.
+Week 8 improved the reliability and auditability of the Validation Engine.
 
-The engine can now handle connector failures gracefully, maintain audit information, and make compliance decisions only when valid supporting evidence is available.
+The implementation added safer validation execution, connector failure handling, structured audit logging, and the initial evidence-backed compliance verification logic.
+
+The evidence-backed compliance verification feature was partially implemented during Week 8, with end-to-end integration remaining in progress.

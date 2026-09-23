@@ -1,75 +1,102 @@
-# Week 7 – Verdict Aggregation, Compliance Mapping & Incremental Validation
+# Week 7 - Verdict Aggregation, Control Mapping & Incremental Validation
 
-## Task
+## Objective
 
-The main tasks for Week 7 were:
+Week 7 focused on improving the Validation Engine with verdict aggregation, regulatory control mapping, incremental validation, and validation result diffing.
 
-1. Implement verdict aggregation.
-2. Map validation results to regulatory controls.
-3. Implement incremental validation.
-4. Implement validation result diffing.
-
-## What I Implemented
+## Tasks Completed
 
 ### 1. Verdict Aggregation
 
-Implemented logic to combine validation results and determine an overall verdict.
+**File:** `validation_engine/ve_app/verdict_aggregation.py`
 
-**Supported verdicts:**
-- Detected
-- Missed
-- Partial
-- NoData
+Implemented verdict aggregation to combine validation results and produce a consolidated outcome.
 
-The aggregation logic helps produce a consistent final validation outcome when multiple validation results are available.
+**Key work:**
+
+* Processed multiple validation results.
+* Aggregated individual verdicts into a final validation outcome.
+* Added logic for handling combined validation results.
+
+**Test:** `validation_engine/tests/test_verdict_aggregation.py`
 
 ### 2. Regulatory Control Mapping
 
-Implemented regulatory control mapping for validation results.
+**File:** `validation_engine/ve_app/control_mapping.py`
 
-**Supported frameworks:**
-- NIST CSF 2.0
-- ISO 27001:2022
-- PCI-DSS 4.0
-- GDPR
+Implemented mapping between validation results and relevant security/compliance controls.
 
-Validation results can be associated with the relevant regulatory controls to support compliance-oriented analysis.
+**Key work:**
+
+* Added control mapping functionality.
+* Associated validation results with applicable control references.
+* Supported compliance-oriented interpretation of validation outcomes.
+
+**Test:** `validation_engine/tests/test_control_mapping.py`
 
 ### 3. Incremental Validation
 
-Implemented incremental validation to process newly received evidence without unnecessarily reprocessing previously validated evidence.
+**File:** `validation_engine/ve_app/incremental_validation.py`
 
-**What I did:**
-- Identified new evidence for validation.
-- Avoided unnecessary repeated processing.
-- Improved validation efficiency for incremental evidence updates.
+Implemented incremental validation to process new or changed evidence without unnecessarily repeating the complete validation workflow.
+
+**Key work:**
+
+* Added incremental validation processing.
+* Supported validation of newly received or changed evidence.
+* Reduced unnecessary reprocessing of previously evaluated data.
+
+**Test:** `validation_engine/tests/test_incremental_validation.py`
 
 ### 4. Validation Result Diffing
 
-Implemented comparison of validation results between different validation runs.
+**File:** `validation_engine/ve_app/validation_diff.py`
 
-**What I did:**
-- Compared previous and current validation results.
-- Identified changes between validation runs.
-- Supported tracking of validation result changes.
+Implemented validation result comparison to identify changes between validation runs.
 
-## Implementation
+**Key work:**
 
-The Week 7 functionality was integrated into the Validation Engine validation and result-processing flow.
+* Compared validation results across runs.
+* Identified changes in validation outcomes.
+* Supported tracking of validation result differences.
 
-Related implementation areas include verdict aggregation, regulatory control mapping, incremental validation, and validation result comparison.
+**Test:** `validation_engine/tests/test_validation_diff.py`
 
-## Testing
+## Implementation Files
 
-Week 7 functionality was tested as part of the Validation Engine test suite.
+```text
+Week7/
+└── validation_engine/
+    ├── ve_app/
+    │   ├── control_mapping.py
+    │   ├── incremental_validation.py
+    │   ├── validation_diff.py
+    │   └── verdict_aggregation.py
+    └── tests/
+        ├── test_control_mapping.py
+        ├── test_incremental_validation.py
+        ├── test_validation_diff.py
+        └── test_verdict_aggregation.py
+```
 
-The implementation was verified for:
+## Testing & Validation
 
-- Verdict aggregation
-- Regulatory control mapping
-- Incremental validation
-- Validation result changes/diffing
+Automated tests were added for the Week 7 functionality, covering:
+
+* Verdict aggregation
+* Regulatory control mapping
+* Incremental validation
+* Validation result comparison/diffing
+
+The implementation was validated using the project's pytest-based test framework.
 
 ## Result
 
-Week 7 enhanced the Validation Engine with aggregated verdict processing, regulatory compliance mapping, incremental validation, and validation result diffing.
+Week 7 extended the Validation Engine with capabilities for:
+
+* Consolidating multiple validation results
+* Mapping validation outcomes to security/compliance controls
+* Incremental evidence validation
+* Comparing validation results between runs
+
+These enhancements improved the Validation Engine's ability to produce consolidated, traceable, and compliance-aware validation outcomes.

@@ -101,3 +101,29 @@ def test_validate_batch_processes_multiple_evidence_events():
     assert body[2]["action_id"] == "act-0003"
 
     assert all(result["verdict"] == "Detected" for result in body)
+def test_validate_evidence_integrates_with_compliance_verification():
+    from ve_app.main import validate_evidence
+    from ve_app.control_mapping import get_compliance_status
+
+    from ve_app.main import DetectionRule
+    from ve_app.models import EvidenceEvent
+
+    evidence = EvidenceEvent(**EVIDENCE)
+    rules = [
+        DetectionRule(
+            rule_id="DET-001",
+            technique_ref="T1486",
+        )
+    ]
+
+    verdict = validate_evidence(evidence, rules)
+
+    assert verdict.verdict == "Detected"
+    assert verdict.matched_evidence_ref == "act-0001"
+
+    compliance_status = get_compliance_status(
+        verdict,
+        [evidence.action_id],
+    )
+
+    assert compliance_status == "Met"

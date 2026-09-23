@@ -1,79 +1,79 @@
-# Week 4 – Validation Engine & Connector Framework Integration
+# Week 4 - Validation Engine & Connector Framework Integration
 
-## Task
+## Objective
 
-The main tasks for Week 4 were:
+Week 4 focused on extending the Validation Engine with detection rule execution, observable matching, time-window validation, and connector framework integration.
 
-1. Implement detection rule execution.
-2. Execute validation rules against evidence events.
-3. Calculate confidence scores.
-4. Generate raw validation results.
-5. Integrate the Validation Engine with the connector framework.
-6. Add MockConnector support for testing.
-7. Implement time-window validation.
-8. Implement observable matching.
-9. Add integration testing for the Validation Engine.
-
-## What I Implemented
+## Tasks Completed
 
 ### 1. Detection Rule Execution
 
-**File:** `services/validation_engine/ve_app/rule_execution.py`
+**File:** `validation_engine/ve_app/rule_execution.py`
 
-Implemented the rule execution logic to process evidence events against validation rules.
+Implemented the detection rule execution flow for processing evidence against validation rules.
 
-**What I did:**
-- Processed evidence against detection rules.
+**Key work:**
+- Processed evidence events against detection rules.
 - Executed validation logic.
-- Calculated confidence information.
 - Generated raw validation results.
+- Integrated rule execution with the validation workflow.
 
 ### 2. Connector Framework
 
-**File:** `services/validation_engine/ve_app/connectors.py`
+**File:** `validation_engine/ve_app/connectors.py`
 
-Integrated the Validation Engine with a connector framework.
+Implemented the connector framework used by the Validation Engine.
 
-**What I did:**
+**Key work:**
 - Added the `BaseConnector` abstraction.
-- Created connector handling for evidence/SIEM sources.
-- Added `MockConnector` for local testing.
-- Enabled validation logic to work with connector-based evidence.
+- Added connector handling for evidence/SIEM sources.
+- Implemented `MockConnector` for local testing.
+- Enabled connector-based evidence retrieval and processing.
 
 ### 3. Time-Window Validation
 
-**File:** `services/validation_engine/ve_app/time_window.py`
+**File:** `validation_engine/ve_app/time_window.py`
 
-Implemented time-window logic for validation.
+Implemented time-window bounding logic for validation.
 
-**What I did:**
-- Restricted validation results to the relevant time range.
+**Key work:**
+- Restricted evidence evaluation to the relevant time range.
 - Added configurable time-window handling.
-- Prevented evidence outside the required time range from being considered.
+- Prevented evidence outside the applicable validation window from being considered.
 
 ### 4. Observable Matching
 
-**File:** `services/validation_engine/ve_app/observable_matching.py`
+**File:** `validation_engine/ve_app/observable_matching.py`
 
-Implemented observable matching between expected values and returned evidence.
+Implemented observable matching between expected detection values and returned evidence.
 
-**What I did:**
-- Compared expected observables with evidence/SIEM results.
-- Added different levels of matching strength.
-- Used matching results as part of confidence calculation.
+**Key work:**
+- Compared expected observables with evidence results.
+- Supported different levels of matching strength.
+- Used observable matching results as part of validation and confidence evaluation.
 
-## Testing
+## Testing & Validation
 
-Integration testing was performed for the Validation Engine.
+Added integration and connector framework tests covering the Week 4 validation workflow.
 
-**Relevant test:**
+### Test Coverage
 
-`services/validation_engine/tests/test_rule_execution_integration.py`
+- `validation_engine/tests/test_rule_execution_integration.py`
+  - Validates the rule execution flow and raw validation results.
 
-The tests verify the flow from evidence input through rule execution to raw validation results.
+- `validation_engine/tests/test_connector_framework.py`
+  - Validates the connector framework and `MockConnector` behavior.
 
-## Result
+## Implementation Files
 
-Week 4 integrated rule execution, connector handling, time-window validation, and observable matching into the Validation Engine.
-
-This established the core validation flow required for processing evidence and generating confidence-based validation results.
+```text
+Week4/
+└── validation_engine/
+    ├── ve_app/
+    │   ├── connectors.py
+    │   ├── observable_matching.py
+    │   ├── rule_execution.py
+    │   └── time_window.py
+    └── tests/
+        ├── test_connector_framework.py
+        └── test_rule_execution_integration.py
