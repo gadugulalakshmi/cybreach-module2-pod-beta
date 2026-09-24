@@ -141,16 +141,17 @@ def build_verdict(
         rule_id=rule.rule_id,
         technique_ref=evidence.technique_ref,
     )
-    compliance_status = get_compliance_status(verdict, [evidence.action_id])
-    verdict.causal_chain.append(f"Compliance verification: {compliance_status}")
-    
+    compliance_status = get_compliance_status(
+        verdict_obj, [evidence.action_id]
+    )
+    verdict_obj.causal_chain.append(
+        f"Compliance verification: {compliance_status}"
+    )
+
     return attach_integrity_hash(verdict_obj)
 
 
-def validate_evidence(
-    evidence: EvidenceEvent,
-    rules: List[DetectionRule],
-) -> Verdict:
+
 
 def validate_evidence(evidence: EvidenceEvent, rules: List[DetectionRule]) -> Verdict:
     """
