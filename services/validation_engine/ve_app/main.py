@@ -14,6 +14,7 @@ from typing import List, Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel
+import httpx
 
 from ve_app.models import EvidenceEvent, Verdict
 from ve_app.verdict_integrity import attach_integrity_hash
@@ -38,7 +39,33 @@ class DetectionRule(BaseModel):
     query_str: str = ""
     keywords: List[str] = []
 
+ALPHA_RULES_URL = "http://127.0.0.1:8001/api/v2/rules"
 
+
+async def fetch_alpha_rules() -> List[DetectionRule]:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(ALPHA_RULES_URL)
+        response.raise_for_status()
+
+        alpha_rules = response.json()
+        beta_rules = []
+
+        for rule in alpha_rules:
+            techniques = rule.get("mitre_techniques", [])
+
+            for technique in techniques:
+                beta_rules.append(
+                    DetectionRule(
+                        rule_id=rule["rule_id"],
+                        technique_ref=technique,
+                        vendor="alpha",
+                        query_str=str(rule.get("detection_logic", "")),
+                        keywords=[]
+                    )
+                )
+
+        return beta_rules
+        
 class ValidateRequest(BaseModel):
     evidence: EvidenceEvent
     rules: List[DetectionRule]
@@ -188,7 +215,8 @@ def validate_evidence(evidence: EvidenceEvent, rules: List[DetectionRule]) -> Ve
 
 @app.post("/validate", response_model=Verdict)
 async def validate(req: ValidateRequest) -> Verdict:
-    return validate_evidence(req.evidence, req.rules)
+        rules = req.rules if req.rules else await fetch_alpha_rules()
+        return validate_evidence(req.evidence, rules)
 
 
 @app.post("/validate/batch", response_model=List[Verdict])
