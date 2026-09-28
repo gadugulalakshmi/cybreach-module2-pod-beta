@@ -30,6 +30,14 @@ class EvidenceEvent(BaseModel):
 class Verdict(BaseModel):
     """
     Raw output of the Validation Engine for a single EvidenceEvent.
+
+    B2/B3: the wire field is `content_hash`, not `integrity_hash`, and
+    `regulatory_control_refs` is part of the plan's v2.0 contract. The digest
+    is computed over these same eight contract fields so it is byte-identical
+    to the one Delta publishes and any consumer can re-derive it.
+
+    `rule_id` and `technique_ref` are Beta-local context: they are not in the
+    v2.0 payload, so the publisher drops them when it builds the event.
     """
 
     action_id: str
@@ -38,9 +46,10 @@ class Verdict(BaseModel):
     mttd_seconds: Optional[float] = Field(default=None)
     matched_evidence_ref: Optional[str] = Field(default=None)
     causal_chain: List[str] = Field(default_factory=list)
+    regulatory_control_refs: List[str] = Field(default_factory=list)
+    content_hash: Optional[str] = Field(
+        default=None,
+        description="SHA-256 over the v2.0 contract fields, for tamper detection",
+    )
     rule_id: str
     technique_ref: str
-    integrity_hash: Optional[str] = Field(
-        default=None,
-        description="SHA-256 integrity hash for detecting verdict tampering",
-    )

@@ -7,7 +7,7 @@ Run locally with:
 from typing import List, Optional
 
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from oc_app.causal_chain import build_causal_chain
 from oc_app.fidelity import assess_fidelity
@@ -30,7 +30,11 @@ class RawValidationResult(BaseModel):
     """
 
     action_id: str
-    confidence: float
+    # B5: bounded here as well as on `OutcomeVerdict`. Without it an
+    # out-of-range score reached the classifier, was compared against the
+    # thresholds, and then raised inside the response model -- a 500 rather
+    # than a 422 for what is a client error.
+    confidence: float = Field(..., ge=0.0, le=1.0)
     rule_id: str
     no_data: bool = False
     matched_evidence_ref: Optional[str] = None
@@ -81,3 +85,16 @@ async def classify(result: RawValidationResult) -> OutcomeVerdict:
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "outcome_classifier"}
+
+
+if __name__ == "__main__":
+    import os
+
+    import uvicorn
+
+    # P3: the port registry assigns the Outcome Classifier 8003.
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.getenv("OC_PORT", "8003")),
+    )
