@@ -12,12 +12,14 @@ Run locally with:
 
 from typing import List, Optional
 
+import os
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 import httpx
 
 from ve_app.models import EvidenceEvent, Verdict
-from ve_app.verdict_integrity import attach_integrity_hash
+from ve_app.verdict_integrity import attach_content_hash
 from ve_app.rule_matching import find_matching_rules
 from ve_app.control_mapping import get_compliance_status
 
@@ -39,7 +41,11 @@ class DetectionRule(BaseModel):
     query_str: str = ""
     keywords: List[str] = []
 
-ALPHA_RULES_URL = "http://127.0.0.1:8001/api/v2/rules"
+# Pod Alpha's rule endpoint. Injected rather than hardcoded so a hybrid run can
+# point at whichever host Alpha is on without editing source.
+ALPHA_RULES_URL = os.getenv(
+    "ALPHA_RULES_URL", "http://127.0.0.1:8001/api/v2/rules"
+)
 
 
 async def fetch_alpha_rules() -> List[DetectionRule]:
@@ -123,16 +129,24 @@ def build_verdict(
     confidence: float,
 ) -> Verdict:
     if rule is None:
-        return Verdict(
-            action_id=evidence.action_id,
-            verdict="NoData",
-            confidence=0.0,
-            causal_chain=[
-                "No detection rule found for technique "
-                + evidence.technique_ref
-            ],
-            rule_id="NONE",
-            technique_ref=evidence.technique_ref,
+        # B2: this path previously returned without hashing, so `content_hash`
+        # serialized as `null` on every NoData verdict -- the ones most likely
+        # to be wrong, and the ones a consumer most needs to be able to check
+        # for tampering. Every verdict now gets a digest.
+        return attach_content_hash(
+            Verdict(
+                action_id=evidence.action_id,
+                verdict="NoData",
+                confidence=0.0,
+                causal_chain=[
+                    "No detection rule found for technique "
+                    + evidence.technique_ref
+                ],
+                matched_evidence_ref=None,
+                regulatory_control_refs=[],
+                rule_id="NONE",
+                technique_ref=evidence.technique_ref,
+            )
         )
 
     if confidence >= 0.7:
@@ -149,6 +163,7 @@ def build_verdict(
         matched_evidence_ref=(
             evidence.action_id if verdict != "Missed" else None
         ),
+        regulatory_control_refs=[],
         causal_chain=[
             f"Evidence event received: {evidence.action_id}",
             (
@@ -175,7 +190,7 @@ def build_verdict(
         f"Compliance verification: {compliance_status}"
     )
 
-    return attach_integrity_hash(verdict_obj)
+    return attach_content_hash(verdict_obj)
 
 
 
@@ -232,3 +247,15 @@ async def validate_batch(req: BatchValidateRequest) -> List[Verdict]:
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "validation_engine"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    # P3: the port registry assigns the Validation Engine 8002. It was left on
+    # uvicorn's default 8000, which collides with Delta's backend.
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.getenv("VE_PORT", "8002")),
+    )
