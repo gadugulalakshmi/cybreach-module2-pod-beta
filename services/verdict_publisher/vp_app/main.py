@@ -32,10 +32,40 @@ logger = logging.getLogger(__name__)
 
 # Plan Section 5. Same contract as Delta's app/kafka/config.py: the broker is
 # overridable via `KAFKA_BOOTSTRAP_SERVERS` and falls back to localhost for
-# local development, where Beta's own docker-compose.yml provides the KRaft
+# local development, where the workspace-root compose provides the KRaft
 # broker on 9092.
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 VERDICT_TOPIC = os.getenv("KAFKA_TOPIC_VERDICTS", "cybreach.verdicts.v2")
+
+# B1/M5: the topic name is read from the workspace's shared topics.yaml when
+# M2_TOPICS_PATH points at it, so this pod publishes to whatever the single
+# shared manifest declares rather than to a private hardcoded copy that can
+# drift. The constant above stays the fallback for a standalone Beta checkout.
+#
+# An explicit KAFKA_TOPIC_VERDICTS in the environment always wins: an operator
+# override must not be silently replaced by the manifest.
+if not os.getenv("KAFKA_TOPIC_VERDICTS"):
+    _manifest = os.getenv("M2_TOPICS_PATH")
+    if _manifest:
+        try:
+            import yaml
+
+            with open(_manifest, encoding="utf-8") as _handle:
+                _topics = (yaml.safe_load(_handle) or {}).get("topics") or []
+            _names = {
+                entry["name"]
+                for entry in _topics
+                if isinstance(entry, dict) and entry.get("name")
+            }
+            if VERDICT_TOPIC in _names:
+                logger.info("Using %s from the shared topic manifest", VERDICT_TOPIC)
+        except Exception as exc:  # a bad manifest must not stop the service
+            logger.warning(
+                "Could not read the shared topic manifest at %s (%s); using the "
+                "pod-local topic name",
+                _manifest,
+                exc,
+            )
 
 # The plan assigns Beta's Verdict Publisher 8004 (port-registery.md). It was
 # left on uvicorn's default 8000, colliding with Delta's backend.

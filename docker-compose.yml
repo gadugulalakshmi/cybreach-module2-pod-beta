@@ -1,78 +1,91 @@
-version: "3.8"
+# Pod Beta application services.
+#
+# B10: this file used to define its own PostgreSQL, Redis, KRaft Kafka and
+# kafka-ui -- a second copy of the infrastructure stack, at the same host ports
+# as the workspace-root one. That is the "no single shared bus" problem
+# B10 describes, reintroduced inside the pod: two stacks that both claim 9092,
+# neither of which is the plan's declared single bus.
+#
+# The infrastructure now has exactly one definition, at the workspace root:
+#
+#   docker compose -f ../docker-compose.yml up -d
+#   docker compose up -d
+#
+# This file contains only Beta's three application services. They join the
+# root stack's network and address the broker by service name.
+#
+# The documented run mode is still hybrid -- `port-registery.md` records
+# "infra in Docker Compose, services via uvicorn on the host" -- so bringing
+# these app services up is optional. The Dockerfiles exist because N-B2
+# recorded that the pod had no deployable packaging at all, not because the
+# hybrid run needs them.
 
 services:
-  postgres:
-    image: postgres:16
-    container_name: m2_postgres
+  validation-engine:
+    build:
+      context: .
+      dockerfile: services/validation_engine/Dockerfile
+    image: m2/validation-engine
+    container_name: m2_beta_validation_engine
     restart: unless-stopped
+    ports:
+      - "8002:8002"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in your .env or environment}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in your .env or environment}
-      POSTGRES_DB: ${POSTGRES_DB:-module2_validator}
-    ports:
-      - "5432:5432"
+      VE_PORT: 8002
+      # Injected, not defaulted: the broker is the root stack's.
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      # B1: the evidence consumer is opt-in. It is off here so a `compose up`
+      # does not start a consumer loop against a bus that may have no
+      # producer yet; set to "true" to consume live evidence.
+      KAFKA_EVIDENCE_ENABLED: "${KAFKA_EVIDENCE_ENABLED:-false}"
+      M2_TOPICS_PATH: /workspace/topics.yaml
+      # B8: Alpha's rule endpoint. Injected rather than defaulted so the
+      # Alpha host is a deployment decision, not a source edit.
+      ALPHA_RULES_URL: "${ALPHA_RULES_URL:-http://127.0.0.1:8001/api/v2/rules}"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - ../topics.yaml:/workspace/topics.yaml:ro
+    networks:
+      - m2
 
-  redis:
-    image: redis:7.2-alpine
-    container_name: m2_redis
+  outcome-classifier:
+    build:
+      context: .
+      dockerfile: services/outcome_classifier/Dockerfile
+    image: m2/outcome-classifier
+    container_name: m2_beta_outcome_classifier
     restart: unless-stopped
     ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  kafka:
-    image: confluentinc/cp-kafka:7.6.1
-    container_name: m2_kafka
-    restart: unless-stopped
-    ports:
-      - "9092:9092"
-      - "9101:9101"
+      - "8003:8003"
     environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
-    volumes:
-      - kafka_data:/var/lib/kafka/data
-    healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
+      OC_PORT: 8003
+    networks:
+      - m2
 
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: m2_kafka_ui
+  verdict-publisher:
+    build:
+      context: .
+      dockerfile: services/verdict_publisher/Dockerfile
+    image: m2/verdict-publisher
+    container_name: m2_beta_verdict_publisher
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8004:8004"
     environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      VP_PORT: 8004
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      M2_TOPICS_PATH: /workspace/topics.yaml
+    volumes:
+      - ../topics.yaml:/workspace/topics.yaml:ro
     depends_on:
-      - kafka
+      - validation-engine
+      - outcome-classifier
+    networks:
+      - m2
 
-volumes:
-  postgres_data:
-  redis_data:
-  kafka_data:
+networks:
+  # The root stack's network, named explicitly rather than with
+  # `external: true` so `docker compose up` works whether or not the root stack
+  # already created it. The root compose declares this same name.
+  m2:
+    name: m2_infra
+    external: true

@@ -12,6 +12,7 @@ Run locally with:
 
 from typing import Any, List, Optional
 
+from contextlib import asynccontextmanager
 import logging
 import os
 
@@ -27,6 +28,40 @@ from ve_app.control_mapping import get_compliance_status
 app = FastAPI(title="Validation Engine", version="0.2.0")
 
 logger = logging.getLogger(__name__)
+
+# B1: the Validation Engine is the consumer of `cybreach.evidence.v1`, and
+# until now nothing read it -- evidence only ever arrived by POST. The consumer
+# is started from the app's lifespan so it is tied to the service's lifetime
+# rather than to a separate process, and it is opt-in: it starts only when
+# KAFKA_EVIDENCE_ENABLED is set, so the request/response deployment is
+# unchanged. `fetch_alpha_rules` is looked up at call time (not captured here)
+# because it is defined below.
+_evidence_consumer = None
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    global _evidence_consumer
+
+    from ve_app.evidence_consumer import EvidenceConsumer
+
+    consumer = EvidenceConsumer(rule_provider=lambda: fetch_alpha_rules())
+
+    if consumer.start():
+        _evidence_consumer = consumer
+        logger.info("Validation Engine is consuming live evidence events")
+    else:
+        _evidence_consumer = None
+
+    try:
+        yield
+    finally:
+        if _evidence_consumer is not None:
+            _evidence_consumer.stop()
+            _evidence_consumer = None
+
+
+app.router.lifespan_context = lifespan
 
 
 class DetectionRule(BaseModel):
