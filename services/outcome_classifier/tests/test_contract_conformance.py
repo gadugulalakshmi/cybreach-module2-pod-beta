@@ -58,10 +58,12 @@ class TestConfidenceBounds:
 
 
 class TestCausalChainShape:
-    """M11: the plan's `causal_chain` is `array of string`. Beta emitted a list
-    of objects, so the same logical field had two incompatible shapes."""
+    """M11: the plan's `causal_chain` is `array of string`. Beta used to emit a
+    list of objects, so the same logical field had two incompatible shapes
+    across pods. The endpoint now returns the contract shape directly; the rich
+    object form is still built internally and still unit-tested."""
 
-    def test_contract_projection_is_a_list_of_strings(self):
+    def test_response_causal_chain_is_a_list_of_strings(self):
         response = client.post(
             "/classify",
             json={
@@ -73,16 +75,23 @@ class TestCausalChainShape:
 
         assert response.status_code == 200
 
-        verdict = OutcomeVerdict(**response.json())
+        # Straight off the wire: no re-hydration into the rich model first.
+        chain = response.json()["causal_chain"]
 
-        # The rich object form is retained for the UI...
-        assert all(hasattr(step, "description") for step in verdict.causal_chain)
+        assert chain
+        assert all(isinstance(entry, str) for entry in chain)
 
-        # ...and the v2.0 wire form is a flat list of strings.
-        flat = verdict.causal_chain_strings
+    def test_rich_chain_is_still_built_internally(self):
+        from oc_app.causal_chain import build_causal_chain
+        from oc_app.main import RawValidationResult
 
-        assert flat
-        assert all(isinstance(entry, str) for entry in flat)
+        result = RawValidationResult(
+            action_id="act-0001", confidence=0.9, rule_id="DET-001"
+        )
+
+        chain = build_causal_chain(result, "Detected")
+
+        assert all(hasattr(step, "description") for step in chain)
 
     def test_entries_are_ordered_and_numbered(self):
         response = client.post(
@@ -94,7 +103,7 @@ class TestCausalChainShape:
             },
         )
 
-        flat = OutcomeVerdict(**response.json()).causal_chain_strings
+        flat = response.json()["causal_chain"]
 
         assert flat[0].startswith("1.")
         assert flat[-1].startswith(f"{len(flat)}.")

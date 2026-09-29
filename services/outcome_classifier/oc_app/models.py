@@ -45,3 +45,34 @@ class OutcomeVerdict(BaseModel):
         """The v2.0 wire form of the causal chain."""
 
         return [step.as_contract_entry() for step in self.causal_chain]
+
+
+class OutcomeVerdictResponse(BaseModel):
+    """The v2.0 wire shape returned by `POST /classify`.
+
+    M11: the plan's `causal_chain` is `array of string` -- Alpha's schema, the
+    frozen Delta schema and Delta's serializer all agree on that -- but this
+    endpoint used to declare `response_model=OutcomeVerdict`, whose
+    `causal_chain` is `List[CausalStep]`, so a caller received a list of
+    objects on a field the contract types as a list of strings. The rich
+    object chain is still built and still unit-tested; it is simply no longer
+    what crosses the wire.
+    """
+
+    action_id: str
+    verdict: str  # Detected, Missed, Partial, NoData
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    causal_chain: List[str]
+    mttd_seconds: Optional[float] = None
+    alert_fidelity: Optional[str] = None  # high, medium, low
+
+    @classmethod
+    def from_verdict(cls, verdict: OutcomeVerdict) -> "OutcomeVerdictResponse":
+        return cls(
+            action_id=verdict.action_id,
+            verdict=verdict.verdict,
+            confidence=verdict.confidence,
+            causal_chain=verdict.causal_chain_strings,
+            mttd_seconds=verdict.mttd_seconds,
+            alert_fidelity=verdict.alert_fidelity,
+        )

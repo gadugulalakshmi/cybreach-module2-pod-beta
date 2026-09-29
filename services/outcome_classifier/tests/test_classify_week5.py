@@ -59,7 +59,8 @@ def test_classify_causal_chain_includes_week5_detail_when_supplied():
         "evidence_timestamp": "2026-06-17T09:12:00Z",
         "alert_timestamp": "2026-06-17T09:12:45Z",
     })
-    chain_text = " | ".join(step["description"] for step in resp.json()["causal_chain"])
+    # M11: entries cross the wire as plain strings, not as step objects.
+    chain_text = " | ".join(resp.json()["causal_chain"])
     assert "Match specificity: exact" in chain_text
     assert "vssadmin.exe" in chain_text
     assert "MTTD computed: 45.0 seconds" in chain_text

@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from oc_app.causal_chain import build_causal_chain
 from oc_app.fidelity import assess_fidelity
-from oc_app.models import OutcomeVerdict
+from oc_app.models import OutcomeVerdict, OutcomeVerdictResponse
 from oc_app.mttd import compute_mttd
 
 app = FastAPI(title="Outcome Classifier", version="0.2.0")
@@ -47,8 +47,8 @@ class RawValidationResult(BaseModel):
     keywords_checked: Optional[List[str]] = None
 
 
-@app.post("/classify", response_model=OutcomeVerdict)
-async def classify(result: RawValidationResult) -> OutcomeVerdict:
+@app.post("/classify", response_model=OutcomeVerdictResponse)
+async def classify(result: RawValidationResult) -> OutcomeVerdictResponse:
     # Task 1: Outcome Classifier Implementation -- raw validation result -> classified verdict
     if result.no_data:
         verdict = "NoData"
@@ -72,13 +72,18 @@ async def classify(result: RawValidationResult) -> OutcomeVerdict:
     # Task 2: Causal chain analysis
     chain = build_causal_chain(result, verdict, mttd_seconds=mttd)
 
-    return OutcomeVerdict(
-        action_id=result.action_id,
-        verdict=verdict,
-        confidence=result.confidence,
-        causal_chain=chain,
-        mttd_seconds=mttd,
-        alert_fidelity=fidelity,
+    # M11: the chain is built as rich `CausalStep` objects and then flattened
+    # through `causal_chain_strings` on the way out, so the wire shape matches
+    # the `array of string` every other pod publishes.
+    return OutcomeVerdictResponse.from_verdict(
+        OutcomeVerdict(
+            action_id=result.action_id,
+            verdict=verdict,
+            confidence=result.confidence,
+            causal_chain=chain,
+            mttd_seconds=mttd,
+            alert_fidelity=fidelity,
+        )
     )
 
 
