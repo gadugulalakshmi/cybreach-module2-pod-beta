@@ -3,3 +3,10 @@ __pycache__/
 .pytest_cache/
 
 .venv/
+
+# m7: `docker-compose.yml` now refuses to start without a real password, so a
+# developer has to create a `.env` to bring the stack up. That file holds
+# credentials, so it must never be committed; `.env.example` is the tracked
+# template.
+.env
+!.env.example

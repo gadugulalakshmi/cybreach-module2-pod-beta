@@ -6,15 +6,15 @@ services:
     container_name: m2_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: validator
-      POSTGRES_PASSWORD: validator_dev_pw
-      POSTGRES_DB: module2_validator
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in your .env or environment}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in your .env or environment}
+      POSTGRES_DB: ${POSTGRES_DB:-module2_validator}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U validator -d module2_validator"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
