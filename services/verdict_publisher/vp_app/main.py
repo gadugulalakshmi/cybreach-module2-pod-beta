@@ -128,7 +128,7 @@ def build_event(verdict: PublishedVerdict) -> dict:
     return event
 
 
-@app.post("/publish", response_model=PublishedVerdict)
+@app.post("/api/v2/publish", response_model=PublishedVerdict)
 async def publish_verdict(verdict: PublishedVerdict) -> PublishedVerdict:
     """
     Publish a validated verdict to `cybreach.verdicts.v2`.

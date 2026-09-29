@@ -38,7 +38,7 @@ def test_publish_detected_verdict():
         ],
     }
 
-    response = client.post("/publish", json=payload)
+    response = client.post("/api/v2/publish", json=payload)
 
     assert response.status_code == 200
     response_data = response.json()
@@ -65,7 +65,7 @@ def test_publish_missed_verdict():
         ],
     }
 
-    response = client.post("/publish", json=payload)
+    response = client.post("/api/v2/publish", json=payload)
 
     assert response.status_code == 200
     assert response.json()["verdict"] == "Missed"
@@ -84,7 +84,7 @@ def test_publish_partial_verdict():
         "causal_chain": [],
     }
 
-    response = client.post("/publish", json=payload)
+    response = client.post("/api/v2/publish", json=payload)
 
     assert response.status_code == 200
     assert response.json()["verdict"] == "Partial"
@@ -104,7 +104,7 @@ def test_publish_nodata_verdict():
         ],
     }
 
-    response = client.post("/publish", json=payload)
+    response = client.post("/api/v2/publish", json=payload)
 
     assert response.status_code == 200
     assert response.json()["verdict"] == "NoData"
@@ -122,7 +122,7 @@ def test_publish_rejects_invalid_confidence():
         "technique_ref": "T1486",
     }
 
-    response = client.post("/publish", json=payload)
+    response = client.post("/api/v2/publish", json=payload)
 
     assert response.status_code == 422
 
@@ -152,7 +152,7 @@ class TestVerdictVocabulary:
     )
     def test_legacy_spelling_is_normalised(self, sent, expected):
         response = client.post(
-            "/publish",
+            "/api/v2/publish",
             json={
                 "action_id": "act-alias",
                 "verdict": sent,
@@ -181,7 +181,7 @@ class TestVerdictVocabulary:
 
         # ...and the event is emitted with the canonical token.
         response = client.post(
-            "/publish",
+            "/api/v2/publish",
             json={"action_id": "a", "verdict": "No Data", "confidence": 0.0},
         )
 
@@ -191,7 +191,7 @@ class TestVerdictVocabulary:
         """An unknown token must not reach the bus."""
 
         response = client.post(
-            "/publish",
+            "/api/v2/publish",
             json={
                 "action_id": "act-bogus",
                 "verdict": "Probably",
@@ -203,7 +203,7 @@ class TestVerdictVocabulary:
 
     def test_malformed_content_hash_is_rejected(self):
         response = client.post(
-            "/publish",
+            "/api/v2/publish",
             json={
                 "action_id": "act-badhash",
                 "verdict": "Detected",
@@ -216,7 +216,7 @@ class TestVerdictVocabulary:
 
     def test_empty_action_id_is_rejected(self):
         response = client.post(
-            "/publish",
+            "/api/v2/publish",
             json={"action_id": "", "verdict": "Detected", "confidence": 0.5},
         )
 
@@ -228,7 +228,7 @@ class TestPublishesToKafka:
 
     def test_event_is_sent_to_the_canonical_topic(self, fake_producer):
         response = client.post(
-            "/publish",
+            "/api/v2/publish",
             json={
                 "action_id": "act-kafka-1",
                 "verdict": "Detected",
@@ -269,7 +269,7 @@ class TestPublishesToKafka:
         """`rule_id`/`technique_ref` are caller context, not contract fields."""
 
         client.post(
-            "/publish",
+            "/api/v2/publish",
             json={
                 "action_id": "act-kafka-2",
                 "verdict": "Detected",
@@ -288,7 +288,7 @@ class TestPublishesToKafka:
         self, fake_producer
     ):
         client.post(
-            "/publish",
+            "/api/v2/publish",
             json={
                 "action_id": "act-kafka-3",
                 "verdict": "No Data",
@@ -304,7 +304,7 @@ class TestPublishesToKafka:
         monkeypatch.setattr("vp_app.main.get_producer", lambda: None)
 
         response = client.post(
-            "/publish",
+            "/api/v2/publish",
             json={
                 "action_id": "act-kafka-down",
                 "verdict": "Detected",
@@ -334,7 +334,7 @@ class TestPublishesToKafka:
         )
 
         response = client.post(
-            "/publish",
+            "/api/v2/publish",
             json={
                 "action_id": "act-kafka-error",
                 "verdict": "Detected",
@@ -370,7 +370,7 @@ class TestContentHash:
         """A caller cannot supply a forged or stale digest."""
 
         response = client.post(
-            "/publish",
+            "/api/v2/publish",
             json={
                 "action_id": "act-hash-2",
                 "verdict": "Detected",

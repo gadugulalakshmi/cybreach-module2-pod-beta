@@ -46,7 +46,7 @@ class TestConfidenceBounds:
 
     def test_api_rejects_out_of_range_confidence(self):
         response = client.post(
-            "/classify",
+            "/api/v2/classify",
             json={
                 "action_id": "act-0001",
                 "confidence": 95,
@@ -65,7 +65,7 @@ class TestCausalChainShape:
 
     def test_response_causal_chain_is_a_list_of_strings(self):
         response = client.post(
-            "/classify",
+            "/api/v2/classify",
             json={
                 "action_id": "act-0001",
                 "confidence": 0.9,
@@ -95,7 +95,7 @@ class TestCausalChainShape:
 
     def test_entries_are_ordered_and_numbered(self):
         response = client.post(
-            "/classify",
+            "/api/v2/classify",
             json={
                 "action_id": "act-0001",
                 "confidence": 0.9,

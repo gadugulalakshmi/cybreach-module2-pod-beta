@@ -10,7 +10,7 @@ client = TestClient(app)
 
 
 def test_classify_computes_mttd_from_evidence_and_alert_timestamps():
-    resp = client.post("/classify", json={
+    resp = client.post("/api/v2/classify", json={
         "action_id": "act-0001",
         "confidence": 0.95,
         "rule_id": "DET-001",
@@ -22,7 +22,7 @@ def test_classify_computes_mttd_from_evidence_and_alert_timestamps():
 
 
 def test_classify_explicit_mttd_seconds_takes_priority_over_timestamps():
-    resp = client.post("/classify", json={
+    resp = client.post("/api/v2/classify", json={
         "action_id": "act-0001",
         "confidence": 0.95,
         "rule_id": "DET-001",
@@ -35,12 +35,12 @@ def test_classify_explicit_mttd_seconds_takes_priority_over_timestamps():
 
 
 def test_classify_mttd_is_null_when_no_timestamps_given():
-    resp = client.post("/classify", json={"action_id": "act-0001", "confidence": 0.95, "rule_id": "DET-001"})
+    resp = client.post("/api/v2/classify", json={"action_id": "act-0001", "confidence": 0.95, "rule_id": "DET-001"})
     assert resp.json()["mttd_seconds"] is None
 
 
 def test_classify_uses_match_specificity_for_fidelity():
-    resp = client.post("/classify", json={
+    resp = client.post("/api/v2/classify", json={
         "action_id": "act-0001",
         "confidence": 0.75,  # would be "medium" under the old confidence-only logic
         "rule_id": "DET-001",
@@ -50,7 +50,7 @@ def test_classify_uses_match_specificity_for_fidelity():
 
 
 def test_classify_causal_chain_includes_week5_detail_when_supplied():
-    resp = client.post("/classify", json={
+    resp = client.post("/api/v2/classify", json={
         "action_id": "act-0001",
         "confidence": 0.95,
         "rule_id": "DET-001",
@@ -68,7 +68,7 @@ def test_classify_causal_chain_includes_week5_detail_when_supplied():
 
 def test_classify_backward_compatible_with_week1_style_request():
     """A bare-minimum Week 1/2/3 style request must still work exactly as before."""
-    resp = client.post("/classify", json={"action_id": "act-0001", "confidence": 0.95, "rule_id": "DET-001"})
+    resp = client.post("/api/v2/classify", json={"action_id": "act-0001", "confidence": 0.95, "rule_id": "DET-001"})
     body = resp.json()
     assert body["verdict"] == "Detected"
     assert body["alert_fidelity"] == "high"

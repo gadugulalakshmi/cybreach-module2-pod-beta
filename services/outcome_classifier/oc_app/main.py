@@ -47,7 +47,7 @@ class RawValidationResult(BaseModel):
     keywords_checked: Optional[List[str]] = None
 
 
-@app.post("/classify", response_model=OutcomeVerdictResponse)
+@app.post("/api/v2/classify", response_model=OutcomeVerdictResponse)
 async def classify(result: RawValidationResult) -> OutcomeVerdictResponse:
     # Task 1: Outcome Classifier Implementation -- raw validation result -> classified verdict
     if result.no_data:

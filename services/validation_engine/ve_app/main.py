@@ -10,8 +10,9 @@ Run locally with:
     uvicorn ve_app.main:app --reload --port 8002
 """
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
+import logging
 import os
 
 from fastapi import FastAPI
@@ -25,6 +26,8 @@ from ve_app.control_mapping import get_compliance_status
 
 app = FastAPI(title="Validation Engine", version="0.2.0")
 
+logger = logging.getLogger(__name__)
+
 
 class DetectionRule(BaseModel):
     """Minimal stand-in for a parsed rule until the Rule Ingestion Service
@@ -32,45 +35,96 @@ class DetectionRule(BaseModel):
     and, optionally, asset class (Task 8), then refines the score using
     keyword overlap against the evidence's expected_observable text (a
     stand-in for real SIEM query results).
+
+    B8: `detection_logic` is typed `Union[Dict[str, Any], str]` by Alpha -- a
+    structured mapping for a Sigma rule, a raw query string for KQL. It is
+    kept here as `query` in whatever form Alpha sent it, and `query_str` is
+    derived from it only when it really is a string. The previous mapper did
+    `str(rule["detection_logic"])`, which turned a Sigma rule body into a
+    Python-repr string rather than a query.
     """
 
     rule_id: str
     technique_ref: str
     asset_class: Optional[str] = None
     vendor: str = "mock"
+    query: Any = None
     query_str: str = ""
     keywords: List[str] = []
 
 # Pod Alpha's rule endpoint. Injected rather than hardcoded so a hybrid run can
 # point at whichever host Alpha is on without editing source.
+#
+# M1: the port registry assigns the Rule Ingestion API 8001.
 ALPHA_RULES_URL = os.getenv(
     "ALPHA_RULES_URL", "http://127.0.0.1:8001/api/v2/rules"
 )
 
+# Alpha is a separate pod that may be slow to start. An unbounded fetch would
+# hold the Validation Engine's request open indefinitely when Alpha is down.
+ALPHA_FETCH_TIMEOUT = float(os.getenv("ALPHA_FETCH_TIMEOUT", "5.0"))
+
+# A fetch that fails must not be mistaken for "no rules exist". Alpha is a
+# separate pod; if it is down the engine still has to answer, and an answer of
+# `NoData` for every event would be indistinguishable from a genuine no-match.
+# Fetch failures are therefore logged and surfaced as an empty rule set, and
+# the caller can detect the degraded state (see `ALPHA_RULES_UNAVAILABLE`).
+ALPHA_RULES_UNAVAILABLE = False
+
 
 async def fetch_alpha_rules() -> List[DetectionRule]:
-    async with httpx.AsyncClient() as client:
-        response = await client.get(ALPHA_RULES_URL)
-        response.raise_for_status()
+    """Fetch and map Alpha's parsed rules.
 
-        alpha_rules = response.json()
-        beta_rules = []
+    B8: this is the seam between Alpha's rule ingestion and Beta's engine.
+    Two defects lived here. `detection_logic` was string-coerced, which
+    mangled structured Sigma logic into a Python repr; and a fetch failure
+    propagated as an unhandled exception, turning an Alpha outage into a 500
+    on the Validation Engine.
+    """
 
-        for rule in alpha_rules:
-            techniques = rule.get("mitre_techniques", [])
+    global ALPHA_RULES_UNAVAILABLE
 
-            for technique in techniques:
-                beta_rules.append(
-                    DetectionRule(
-                        rule_id=rule["rule_id"],
-                        technique_ref=technique,
-                        vendor="alpha",
-                        query_str=str(rule.get("detection_logic", "")),
-                        keywords=[]
-                    )
+    try:
+        async with httpx.AsyncClient(timeout=ALPHA_FETCH_TIMEOUT) as client:
+            response = await client.get(ALPHA_RULES_URL)
+            response.raise_for_status()
+            alpha_rules = response.json()
+    except Exception as exc:
+        ALPHA_RULES_UNAVAILABLE = True
+        logger.warning(
+            "Could not fetch rules from Alpha at %s (%s); validating without "
+            "them, which yields NoData until Alpha is reachable",
+            ALPHA_RULES_URL,
+            exc,
+        )
+        return []
+
+    ALPHA_RULES_UNAVAILABLE = False
+
+    beta_rules = []
+
+    for rule in alpha_rules:
+        techniques = rule.get("mitre_techniques", [])
+
+        # Alpha types detection_logic as Union[Dict[str, Any], str]. A string
+        # is a KQL query and is used as the query directly; a mapping is
+        # structured Sigma logic and is preserved as-is, NOT stringified.
+        query = rule.get("detection_logic")
+        query_str = query if isinstance(query, str) else ""
+
+        for technique in techniques:
+            beta_rules.append(
+                DetectionRule(
+                    rule_id=rule["rule_id"],
+                    technique_ref=technique,
+                    vendor="alpha",
+                    query=query,
+                    query_str=query_str,
+                    keywords=[]
                 )
+            )
 
-        return beta_rules
+    return beta_rules
         
 class ValidateRequest(BaseModel):
     evidence: EvidenceEvent
@@ -228,18 +282,25 @@ def validate_evidence(evidence: EvidenceEvent, rules: List[DetectionRule]) -> Ve
     return build_verdict(evidence, best_rule, best_confidence)
 
 
-@app.post("/validate", response_model=Verdict)
+@app.post("/api/v2/validate", response_model=Verdict)
 async def validate(req: ValidateRequest) -> Verdict:
         rules = req.rules if req.rules else await fetch_alpha_rules()
         return validate_evidence(req.evidence, rules)
 
 
-@app.post("/validate/batch", response_model=List[Verdict])
+@app.post("/api/v2/validate/batch", response_model=List[Verdict])
 async def validate_batch(req: BatchValidateRequest) -> List[Verdict]:
-    """Validate multiple evidence events in a single request."""
+    """Validate multiple evidence events in a single request.
 
+    B8: this path used `req.rules` unconditionally, so a batch request that
+    supplied no rules validated every event against an empty list and returned
+    `NoData` for all of them, while the single-event path fetched Alpha's
+    rules. It now resolves rules the same way `/api/v2/validate` does.
+    """
+
+    rules = req.rules if req.rules else await fetch_alpha_rules()
     return [
-        validate_evidence(evidence, req.rules)
+        validate_evidence(evidence, rules)
         for evidence in req.evidence
     ]
 

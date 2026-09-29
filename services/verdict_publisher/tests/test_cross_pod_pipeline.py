@@ -48,7 +48,7 @@ def test_cross_pod_pipeline_detected():
     }
 
     classifier_response = classifier_client.post(
-        "/classify",
+        "/api/v2/classify",
         json=classifier_payload,
     )
 
@@ -78,7 +78,7 @@ def test_cross_pod_pipeline_detected():
     }
 
     publisher_response = publisher_client.post(
-        "/publish",
+        "/api/v2/publish",
         json=publisher_payload,
     )
 

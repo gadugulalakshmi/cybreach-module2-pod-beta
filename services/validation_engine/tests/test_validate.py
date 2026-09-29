@@ -23,14 +23,14 @@ def test_health():
 
 
 def test_validate_detected_with_flat_technique_match_no_keywords():
-    resp = client.post("/validate", json={"evidence": EVIDENCE, "rules": [{"rule_id": "DET-001", "technique_ref": "T1486"}]})
+    resp = client.post("/api/v2/validate", json={"evidence": EVIDENCE, "rules": [{"rule_id": "DET-001", "technique_ref": "T1486"}]})
     body = resp.json()
     assert body["verdict"] == "Detected"
     assert body["confidence"] == 0.9
 
 
 def test_validate_detected_with_full_keyword_match():
-    resp = client.post("/validate", json={
+    resp = client.post("/api/v2/validate", json={
         "evidence": EVIDENCE,
         "rules": [{"rule_id": "DET-001", "technique_ref": "T1486", "keywords": ["vssadmin.exe", "cipher /e"]}],
     })
@@ -40,7 +40,7 @@ def test_validate_detected_with_full_keyword_match():
 
 
 def test_validate_partial_with_some_keyword_match():
-    resp = client.post("/validate", json={
+    resp = client.post("/api/v2/validate", json={
         "evidence": EVIDENCE,
         "rules": [{"rule_id": "DET-001", "technique_ref": "T1486", "keywords": ["vssadmin.exe", "wbadmin.exe", "--encrypt", "cipher /e"]}],
     })
@@ -50,7 +50,7 @@ def test_validate_partial_with_some_keyword_match():
 
 
 def test_validate_missed_with_no_keyword_match():
-    resp = client.post("/validate", json={
+    resp = client.post("/api/v2/validate", json={
         "evidence": EVIDENCE,
         "rules": [{"rule_id": "DET-001", "technique_ref": "T1486", "keywords": ["totally-unrelated-string"]}],
     })
@@ -60,12 +60,12 @@ def test_validate_missed_with_no_keyword_match():
 
 
 def test_validate_no_data_when_no_rule_matches_technique():
-    resp = client.post("/validate", json={"evidence": EVIDENCE, "rules": [{"rule_id": "DET-099", "technique_ref": "T1499"}]})
+    resp = client.post("/api/v2/validate", json={"evidence": EVIDENCE, "rules": [{"rule_id": "DET-099", "technique_ref": "T1499"}]})
     assert resp.json()["verdict"] == "NoData"
 
 
 def test_validate_no_data_when_no_rules_at_all():
-    resp = client.post("/validate", json={"evidence": EVIDENCE, "rules": []})
+    resp = client.post("/api/v2/validate", json={"evidence": EVIDENCE, "rules": []})
     assert resp.json()["verdict"] == "NoData"
 def test_validate_batch_processes_multiple_evidence_events():
     evidence_2 = {
@@ -79,7 +79,7 @@ def test_validate_batch_processes_multiple_evidence_events():
     }
 
     resp = client.post(
-        "/validate/batch",
+        "/api/v2/validate/batch",
         json={
             "evidence": [EVIDENCE, evidence_2, evidence_3],
             "rules": [
