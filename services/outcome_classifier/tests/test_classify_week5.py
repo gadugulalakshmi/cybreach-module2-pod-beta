@@ -4,9 +4,12 @@ MTTD auto-computation from timestamps, and specificity-aware fidelity.
 """
 from fastapi.testclient import TestClient
 
+from auth_helpers import auth_headers
 from oc_app.main import app
 
 client = TestClient(app)
+# B11: /api/v2 is JWT-gated, so the suite's client presents a valid token.
+client.headers.update(auth_headers())
 
 
 def test_classify_computes_mttd_from_evidence_and_alert_timestamps():

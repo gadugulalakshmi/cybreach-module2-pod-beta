@@ -3,9 +3,13 @@ Pytest suite for the Validation Engine's /validate endpoint.
 """
 from fastapi.testclient import TestClient
 
+from auth_helpers import auth_headers
 from ve_app.main import app
 
 client = TestClient(app)
+# B11: /api/v2 is JWT-gated, so the suite's client presents a valid token by
+# default. The unauthenticated-rejection cases build their own client.
+client.headers.update(auth_headers())
 
 EVIDENCE = {
     "action_id": "act-0001",

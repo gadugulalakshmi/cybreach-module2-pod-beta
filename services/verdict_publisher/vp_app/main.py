@@ -21,12 +21,13 @@ import logging
 import os
 import threading
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 from typing import List
 
 from vp_app.models import CONTRACT_FIELDS, PublishedVerdict
+from vp_app.security import get_current_claims, get_current_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -158,8 +159,18 @@ def build_event(verdict: PublishedVerdict) -> dict:
     return event
 
 
-@app.post("/api/v2/publish", response_model=PublishedVerdict)
-async def publish_verdict(verdict: PublishedVerdict) -> PublishedVerdict:
+# B11: /api/v2 is gated on the module's shared JWT. Per-route rather than
+# app-level so /health stays reachable without a token for the run plan's
+# cross-pod health check.
+@app.post(
+    "/api/v2/publish",
+    response_model=PublishedVerdict,
+    dependencies=[Depends(get_current_claims)],
+)
+async def publish_verdict(
+    verdict: PublishedVerdict,
+    tenant_id: str = Depends(get_current_tenant),
+) -> PublishedVerdict:
     """
     Publish a validated verdict to `cybreach.verdicts.v2`.
 
@@ -167,8 +178,17 @@ async def publish_verdict(verdict: PublishedVerdict) -> PublishedVerdict:
     forged digest. If the broker is unreachable the verdict is still returned
     with its hash attached and the failure is logged, rather than turning an
     infrastructure outage into a 500 that loses the verdict.
+
+    B11: the tenant is enforced but not added to the event -- `PublishedVerdict`
+    carries the frozen v2.0 contract fields, which Delta's schema validates
+    against `additionalProperties: false`.
     """
 
+    logger.debug(
+        "Publishing verdict action_id=%s for tenant %s",
+        verdict.action_id,
+        tenant_id,
+    )
     verdict.content_hash = compute_content_hash(verdict)
     event = build_event(verdict)
 

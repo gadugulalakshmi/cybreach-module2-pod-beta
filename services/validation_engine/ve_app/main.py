@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 import logging
 import os
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from pydantic import BaseModel
 import httpx
 
@@ -24,6 +24,11 @@ from ve_app.models import EvidenceEvent, Verdict
 from ve_app.verdict_integrity import attach_content_hash
 from ve_app.rule_matching import find_matching_rules
 from ve_app.control_mapping import get_compliance_status
+from ve_app.security import (
+    get_current_claims,
+    get_current_tenant,
+    get_current_token,
+)
 
 app = FastAPI(title="Validation Engine", version="0.2.0")
 
@@ -160,7 +165,81 @@ async def fetch_alpha_rules() -> List[DetectionRule]:
             )
 
     return beta_rules
-        
+
+
+# M4: Alpha's rule-dependency tracker exists precisely so a rule cannot be
+# edited or deleted while a validation run still depends on it, but nothing ever
+# called `POST /api/v2/rules/{rule_id}/dependencies`, so the tracker was always
+# empty and `safe_to_delete` was unconditionally true. The Validation Engine is
+# the component that actually executes a rule, so it is the one that reports.
+#
+# Reporting is opt-in for the same reason the evidence consumer is
+# (`KAFKA_EVIDENCE_ENABLED`): it is a cross-pod call, and a pod running on its
+# own has no Alpha to report to. Failures are swallowed and logged -- a
+# telemetry side-channel must never turn a successful validation into a 500.
+DEPENDENCY_REPORTING_ENABLED = os.getenv(
+    "RULE_DEPENDENCY_REPORTING_ENABLED", ""
+).strip().lower() in {"1", "true", "yes", "on"}
+
+DEPENDENCY_REPORT_TIMEOUT = float(os.getenv("DEPENDENCY_REPORT_TIMEOUT", "2.0"))
+
+
+async def report_rule_usage(
+    verdict: Verdict, tenant_id: str, token: str, dependent_type: str
+) -> None:
+    """Tell Alpha that `verdict.rule_id` was executed for this tenant.
+
+    Forwards the caller's own Bearer token because Alpha's `/dependencies`
+    route is tenant-scoped: it resolves the rule from the token's `tenant_id`
+    claim, not from the body. Re-minting a Beta token for the upstream call
+    would record the dependency against whichever tenant Beta picked.
+    """
+
+    if not DEPENDENCY_REPORTING_ENABLED:
+        return
+
+    # `NoData` verdicts carry the sentinel rule_id "NONE" (see `build_verdict`).
+    # There is no such rule in Alpha, so reporting it would create a dependency
+    # row against a rule that does not exist.
+    rule_id = (verdict.rule_id or "").strip()
+    if not rule_id or rule_id == "NONE":
+        return
+
+    url = ALPHA_RULES_URL.rstrip("/") + f"/{rule_id}/dependencies"
+    payload = {
+        "dependent_type": dependent_type,
+        "dependent_id": verdict.action_id,
+        "metadata": {
+            "verdict": verdict.verdict,
+            "confidence": verdict.confidence,
+            "technique_ref": verdict.technique_ref,
+            "reported_by": "validation_engine",
+            "tenant_id": tenant_id,
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=DEPENDENCY_REPORT_TIMEOUT) as client:
+            response = await client.post(
+                url,
+                json=payload,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            if response.status_code >= 400:
+                logger.warning(
+                    "Alpha rejected the rule-dependency report for %s (%s)",
+                    rule_id,
+                    response.status_code,
+                )
+    except Exception as exc:  # noqa: BLE001 - telemetry must not fail a verdict
+        logger.warning(
+            "Could not report rule-dependency usage for %s to %s (%s)",
+            rule_id,
+            url,
+            exc,
+        )
+
+
 class ValidateRequest(BaseModel):
     evidence: EvidenceEvent
     rules: List[DetectionRule]
@@ -317,14 +396,36 @@ def validate_evidence(evidence: EvidenceEvent, rules: List[DetectionRule]) -> Ve
     return build_verdict(evidence, best_rule, best_confidence)
 
 
-@app.post("/api/v2/validate", response_model=Verdict)
-async def validate(req: ValidateRequest) -> Verdict:
-        rules = req.rules if req.rules else await fetch_alpha_rules()
-        return validate_evidence(req.evidence, rules)
+# B11: every /api/v2 route requires the module's shared JWT. The dependency is
+# declared per-route rather than on the app because an app-level `dependencies=`
+# also covers /health, and the run plan's cross-pod health check must keep
+# working without a token.
+@app.post(
+    "/api/v2/validate",
+    response_model=Verdict,
+    dependencies=[Depends(get_current_claims)],
+)
+async def validate(
+    req: ValidateRequest,
+    tenant_id: str = Depends(get_current_tenant),
+    token: str = Depends(get_current_token),
+) -> Verdict:
+    rules = req.rules if req.rules else await fetch_alpha_rules()
+    verdict = validate_evidence(req.evidence, rules)
+    await report_rule_usage(verdict, tenant_id, token, "validation_run")
+    return verdict
 
 
-@app.post("/api/v2/validate/batch", response_model=List[Verdict])
-async def validate_batch(req: BatchValidateRequest) -> List[Verdict]:
+@app.post(
+    "/api/v2/validate/batch",
+    response_model=List[Verdict],
+    dependencies=[Depends(get_current_claims)],
+)
+async def validate_batch(
+    req: BatchValidateRequest,
+    tenant_id: str = Depends(get_current_tenant),
+    token: str = Depends(get_current_token),
+) -> List[Verdict]:
     """Validate multiple evidence events in a single request.
 
     B8: this path used `req.rules` unconditionally, so a batch request that
@@ -334,10 +435,13 @@ async def validate_batch(req: BatchValidateRequest) -> List[Verdict]:
     """
 
     rules = req.rules if req.rules else await fetch_alpha_rules()
-    return [
+    verdicts = [
         validate_evidence(evidence, rules)
         for evidence in req.evidence
     ]
+    for verdict in verdicts:
+        await report_rule_usage(verdict, tenant_id, token, "validation_run")
+    return verdicts
 
 
 @app.get("/health")

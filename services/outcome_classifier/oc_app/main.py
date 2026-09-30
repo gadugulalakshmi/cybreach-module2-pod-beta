@@ -6,17 +6,22 @@ Run locally with:
 """
 from typing import List, Optional
 
-from fastapi import FastAPI
+import logging
+
+from fastapi import Depends, FastAPI
 from pydantic import BaseModel, Field
 
 from oc_app.causal_chain import build_causal_chain
 from oc_app.fidelity import assess_fidelity
 from oc_app.models import OutcomeVerdict, OutcomeVerdictResponse
 from oc_app.mttd import compute_mttd
+from oc_app.security import get_current_claims, get_current_tenant
 
 app = FastAPI(title="Outcome Classifier", version="0.2.0")
 
 THRESHOLDS = {"detected": 0.7, "partial": 0.3}
+
+logger = logging.getLogger(__name__)
 
 
 class RawValidationResult(BaseModel):
@@ -47,8 +52,18 @@ class RawValidationResult(BaseModel):
     keywords_checked: Optional[List[str]] = None
 
 
-@app.post("/api/v2/classify", response_model=OutcomeVerdictResponse)
-async def classify(result: RawValidationResult) -> OutcomeVerdictResponse:
+# B11: /api/v2 is gated on the module's shared JWT. Per-route rather than
+# app-level so /health stays reachable without a token for the run plan's
+# cross-pod health check.
+@app.post(
+    "/api/v2/classify",
+    response_model=OutcomeVerdictResponse,
+    dependencies=[Depends(get_current_claims)],
+)
+async def classify(
+    result: RawValidationResult,
+    tenant_id: str = Depends(get_current_tenant),
+) -> OutcomeVerdictResponse:
     # Task 1: Outcome Classifier Implementation -- raw validation result -> classified verdict
     if result.no_data:
         verdict = "NoData"
@@ -75,6 +90,17 @@ async def classify(result: RawValidationResult) -> OutcomeVerdictResponse:
     # M11: the chain is built as rich `CausalStep` objects and then flattened
     # through `causal_chain_strings` on the way out, so the wire shape matches
     # the `array of string` every other pod publishes.
+    #
+    # B11: the tenant is resolved and enforced here but deliberately not added
+    # to the response -- `OutcomeVerdictResponse` is the frozen v2.0 contract
+    # shape that Delta's schema validates, so echoing a tenant field onto it
+    # would break every downstream consumer for no gain.
+    logger.debug(
+        "Classified action %s for tenant %s as %s",
+        result.action_id,
+        tenant_id,
+        verdict,
+    )
     return OutcomeVerdictResponse.from_verdict(
         OutcomeVerdict(
             action_id=result.action_id,

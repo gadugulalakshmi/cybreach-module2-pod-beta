@@ -30,6 +30,7 @@ import pytest
 
 from fastapi.testclient import TestClient
 
+from auth_helpers import auth_headers
 from vp_app.main import app, build_event
 from vp_app.models import PublishedVerdict, CONTRACT_FIELDS
 
@@ -44,6 +45,8 @@ SCHEMA_PATH = (
 )
 
 client = TestClient(app)
+# B11: /api/v2 is JWT-gated, so the suite's client presents a valid token.
+client.headers.update(auth_headers())
 
 VERDICTS = ["Detected", "Missed", "Partial", "NoData"]
 

@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from auth_helpers import auth_headers
 from ve_app.main import DetectionRule, validate_evidence
 from ve_app.models import EvidenceEvent
 from oc_app.main import app as classifier_app
@@ -8,6 +9,11 @@ from vp_app.main import app as publisher_app
 
 classifier_client = TestClient(classifier_app)
 publisher_client = TestClient(publisher_app)
+# B11: both downstream /api/v2 routes are JWT-gated, so the pipeline's clients
+# present a valid token. Without it every hop returns 401 and the test would
+# assert a verdict it never actually produced.
+classifier_client.headers.update(auth_headers())
+publisher_client.headers.update(auth_headers())
 
 
 def test_cross_pod_pipeline_detected():
