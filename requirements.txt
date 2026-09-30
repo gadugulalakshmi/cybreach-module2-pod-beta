@@ -34,3 +34,6 @@ redis==5.2.1
 # now the evidence consumer's, so the two pods that talk to the shared bus do
 # not straddle a kafka-python major.
 kafka-python==3.0.11
+grpcio==1.68.0
+grpcio-tools==1.68.0
+protobuf==5.28.0

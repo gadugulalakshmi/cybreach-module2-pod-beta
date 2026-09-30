@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package cybreach.services;
+
+option py_generic_services = true;
+
+service RuleIngestService {
+  rpc FetchRules(RuleQueryRequest) returns (RuleQueryResponse);
+  rpc GetRule(GetRuleRequest) returns (RuleDetail);
+  rpc HealthCheck(HealthRequest) returns (HealthResponse);
+}
+
+service ValidationService {
+  rpc Validate(ValidateRequest) returns (ValidateResponse);
+  rpc BatchValidate(BatchValidateRequest) returns (BatchValidateResponse);
+  rpc HealthCheck(HealthRequest) returns (HealthResponse);
+}
+
+service ClassificationService {
+  rpc Classify(ClassifyRequest) returns (ClassifyResponse);
+  rpc HealthCheck(HealthRequest) returns (HealthResponse);
+}
+
+message HealthRequest {
+  string service_name = 1;
+}
+
+message HealthResponse {
+  string status = 1;
+  string service = 2;
+  int64 timestamp = 3;
+  string version = 4;
+}
+
+message RuleQueryRequest {
+  string tenant_id = 1;
+  string rule_query = 2;
+  int32 limit = 3;
+}
+
+message RuleQueryResponse {
+  repeated RuleDetail rules = 1;
+  string status = 2;
+}
+
+message GetRuleRequest {
+  string tenant_id = 1;
+  string rule_id = 2;
+}
+
+message RuleDetail {
+  string rule_id = 1;
+  string rule_name = 2;
+  string rule_query = 3;
+  string source = 4;
+  int64 created_at = 5;
+  int64 updated_at = 6;
+}
+
+message ValidateRequest {
+  string tenant_id = 1;
+  string evidence_id = 2;
+  bytes normalized_event = 3;
+  repeated string rule_ids = 4;
+}
+
+message ValidateResponse {
+  string verdict_id = 1;
+  string status = 2;
+  repeated string matched_rules = 3;
+  string error_detail = 4;
+}
+
+message BatchValidateRequest {
+  string tenant_id = 1;
+  repeated ValidateRequest requests = 2;
+}
+
+message BatchValidateResponse {
+  repeated ValidateResponse responses = 1;
+  int32 success_count = 2;
+  int32 failed_count = 3;
+}
+
+message ClassifyRequest {
+  string tenant_id = 1;
+  string verdict_id = 2;
+  repeated string matched_rules = 3;
+  int32 match_count = 4;
+}
+
+message ClassifyResponse {
+  string verdict_id = 1;
+  string risk_level = 2;
+  repeated string causal_chain = 3;
+  string classification_detail = 4;
+}
