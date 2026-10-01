@@ -117,13 +117,26 @@ class EvidenceConsumer:
         Re-fetched on an interval rather than once per event: Alpha's rule set
         changes rarely, and fetching per message would put a network round trip
         (and an Alpha outage) in the path of every single event.
+
+        The provider may be sync or async. `fetch_alpha_rules` is a coroutine
+        function, but this class runs on a plain consumer thread, so calling it
+        directly returned an un-awaited coroutine and every event then died in
+        `validate_evidence` with "'coroutine' object is not iterable" - which is
+        what actually happened on the first live run of the B1 flow, with the
+        partition stuck at offset 0 and no verdict. Coroutines are now awaited
+        on a throwaway loop instead.
         """
 
         if not self._rules_current():
+            import asyncio
+            import inspect
             import time
 
             try:
-                self._rules = self._rule_provider() or []
+                provided = self._rule_provider()
+                if inspect.isawaitable(provided):
+                    provided = asyncio.run(provided)
+                self._rules = provided or []
                 self._rules_loaded_at = time.monotonic()
             except Exception as exc:
                 # Keep the previous rule set if a refresh fails: stale rules

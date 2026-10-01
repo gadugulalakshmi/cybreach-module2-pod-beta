@@ -56,7 +56,22 @@ async def lifespan(_app: FastAPI):
 
     from ve_app.evidence_consumer import EvidenceConsumer
 
-    consumer = EvidenceConsumer(rule_provider=lambda: fetch_alpha_rules())
+    # The consumer has no caller to forward a credential from, so it uses an
+    # explicitly configured service identity. Unset means no identity, which
+    # means no Alpha fetch and no publish -- logged, not silently wrong.
+    from ve_app.service_identity import mint_service_token
+    from ve_app.verdict_publish import publish_verdict
+
+    def _rule_provider():
+        return fetch_alpha_rules(mint_service_token())
+
+    def _on_verdict(evidence, verdict):
+        publish_verdict(verdict, mint_service_token())
+
+    consumer = EvidenceConsumer(
+        rule_provider=_rule_provider,
+        on_verdict=_on_verdict,
+    )
 
     if consumer.start():
         _evidence_consumer = consumer
@@ -100,14 +115,14 @@ class DetectionRule(BaseModel):
 
 
 ALPHA_RULES_URL = os.getenv(
-    "ALPHA_RULES_URL", "http://127.0.0.1:8001/api/v2/rules"
+    "ALPHA_RULES_URL", "http://127.0.0.1:8001/api/v2/rules/search"
 )
 
 ALPHA_FETCH_TIMEOUT = float(os.getenv("ALPHA_FETCH_TIMEOUT", "5.0"))
 ALPHA_RULES_UNAVAILABLE = False
 
 
-async def fetch_alpha_rules() -> List[DetectionRule]:
+async def fetch_alpha_rules(token: Optional[str] = None) -> List[DetectionRule]:
     """Fetch and map Alpha's parsed rules.
 
     B8: this is the seam between Alpha's rule ingestion and Beta's engine.
@@ -115,9 +130,21 @@ async def fetch_alpha_rules() -> List[DetectionRule]:
     mangled structured Sigma logic into a Python repr; and a fetch failure
     propagated as an unhandled exception, turning an Alpha outage into a 500
     on the Validation Engine.
+
+    M4, found by booting the stack rather than by reading tests: this call was
+    unreachable in practice. It defaulted to Alpha's `/api/v2/rules`, which is
+    not a route - the list endpoint is `/api/v2/rules/search` - so the fetch
+    404'd whatever Alpha returned, `raise_for_status()` fired, and every
+    validation silently degraded to `NoData` while `/health` still reported
+    `ok`. It also sent no `Authorization` header, so even a correct URL would
+    have been rejected by B11 with 401 once Alpha had any rules. Both are fixed
+    here: the default is the real route, and the caller's bearer token is
+    forwarded so Alpha's tenant filter applies rather than being bypassed.
     """
 
     global ALPHA_RULES_UNAVAILABLE
+
+    auth_headers = {"Authorization": f"Bearer {token}"} if token else {}
 
     if os.getenv("ALPHA_GRPC_ENABLED", "false").lower() in {"1", "true", "yes", "on"}:
         try:
@@ -147,7 +174,7 @@ async def fetch_alpha_rules() -> List[DetectionRule]:
 
     try:
         async with httpx.AsyncClient(timeout=ALPHA_FETCH_TIMEOUT) as client:
-            response = await client.get(ALPHA_RULES_URL)
+            response = await client.get(ALPHA_RULES_URL, headers=auth_headers)
             response.raise_for_status()
             alpha_rules = response.json()
     except Exception as exc:
@@ -161,6 +188,20 @@ async def fetch_alpha_rules() -> List[DetectionRule]:
         return []
 
     ALPHA_RULES_UNAVAILABLE = False
+
+    # Alpha's /search returns a bare list by default, but it also serves a
+    # structured pagination envelope when `?paginated=true`. Accept either so a
+    # proxy that adds the envelope cannot silently yield zero rules.
+    if isinstance(alpha_rules, dict):
+        alpha_rules = alpha_rules.get("rules", alpha_rules.get("items", []))
+    if not isinstance(alpha_rules, list):
+        logger.warning(
+            "Alpha returned %s from %s, not a rule list; ignoring",
+            type(alpha_rules).__name__,
+            ALPHA_RULES_URL,
+        )
+        ALPHA_RULES_UNAVAILABLE = True
+        return []
 
     beta_rules = []
 
@@ -356,7 +397,7 @@ async def validate(
     tenant_id: str = Depends(get_current_tenant),
     token: str = Depends(get_current_token),
 ) -> Verdict:
-    rules = req.rules if req.rules else await fetch_alpha_rules()
+    rules = req.rules if req.rules else await fetch_alpha_rules(token)
     verdict = validate_evidence(req.evidence, rules)
     await report_rule_usage(verdict, tenant_id, token, "validation_run")
     return verdict
@@ -372,7 +413,7 @@ async def validate_batch(
     tenant_id: str = Depends(get_current_tenant),
     token: str = Depends(get_current_token),
 ) -> List[Verdict]:
-    rules = req.rules if req.rules else await fetch_alpha_rules()
+    rules = req.rules if req.rules else await fetch_alpha_rules(token)
     verdicts = [
         validate_evidence(evidence, rules)
         for evidence in req.evidence
